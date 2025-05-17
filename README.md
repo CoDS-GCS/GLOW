@@ -8,7 +8,7 @@ Knowledge Graph Question Answering (KGQA) aims to answer natural language questi
   <em>The GLOW-QA Pipeline Phases</em>
 </p>
 <p align="center" width="30%">
-  <img src="table1.png" alt="Average accuracy (%) on open-world KGQA tasks, grouped by reasoning hop count. GLOW-GN sig- nificantly outperforms the baseline methods, especially on both 1-hop and 2-hop questions. All methods use Qwen3-8B as the underlying LLM " width="600"/>
+  <img src="table1.png" style="width: 300px" alt="Average accuracy (%) on open-world KGQA tasks, grouped by reasoning hop count. GLOW-GN sig- nificantly outperforms the baseline methods, especially on both 1-hop and 2-hop questions. All methods use Qwen3-8B as the underlying LLM " width="600"/>
   <br>
 </p>
 
