@@ -1,17 +1,19 @@
+<h2> Leveraging LLM-GNN Integration for Open-World Question Answering over Knowledge Graphs </h2>
 <h1>Abstract</h1>
-Domain-specific reasoning over Knowledge Graphs (KGs) presents a substantial challenge for Large Language Models (LLMs) due to the complexity of graph structures and the abundance of irrelevant information. Existing LLM reasoning methods often neglect the structural semantics of KG fact, missing
-the opportunity to leverage their rich relational context. This paper addresses the task of Predictive Query Answering over knowledge graphs by
-proposing an Inductive Graph Retrieval-Augmented-Generation (Inductive Graph-RAG) pipeline. Our method integrates Graph Neural Networks (GNNs) and RAG to answer predictive queries, where missing facts are dynamically predicted using a pre-trained GNN model. Theoretical analysis and
-problem formulation are conducted to understand GraphRAG’s capabilities. A lightweight KG context retrieval phase is incorporated to extract relevant triples and integrate GNN inference to predict the potential answers. The augmentation phase enriches user prompts with relevant context to improve
-one-off-the-shelf LLM reasoning performance in domain-specific knowledge. To evaluate our approach, we introduce a diverse taxonomy of predictive queries spanning four distinct KG domains, forming a challenging dataset with varied characteristics. Extensive experiments demonstrate that InductiveGRAG significantly improves LLM reasoning capabilities and performance.
+Knowledge Graph Question Answering (KGQA) aims to answer natural language questions using structured knowledge from knowledge graphs (KGs). Large Language Models (LLMs), with their strong language understanding and reasoning abilities, offer a promising way to enhance KGQA—especially in domain-specific settings —by integrating symbolic and structured information. However, most existing approaches assume a closed world, where missing facts are treated as false and answers must exist in the KG, which limits their effectiveness in real-world scenarios with incomplete data. To address this, we introduce GLOW, a system for open-world KGQA that combines LLMs with graph neural networks (GNNs).  A pre-trained GNN predicts top-k candidate answers based on graph structure, which are embedded into a structured prompt to guide the LLM in reasoning over both text and topology.  While current KGQA benchmarks focus on simple, shallow questions within limited domains, they fail to test the deeper reasoning needed for open-world settings.  To fill this gap, we also present a new benchmark of 1,000 multi-hop questions spanning diverse domains and requiring inference over incomplete KGs. 
+ Experiments across four benchmarks—including our new dataset—show that GLOW significantly outperforms state-of-the-art LLMs (e.g., GPT-4o-mini) and graph-based QA systems,  achieving up to 53.3% and an average of 38% performance improvement.
 <p align="center" width="100%">
-  <img src="InductiveGNNRAG_page.jpg" alt="The Inductive Graph RAG Pipeline Phases" width="600"/>
+  <img src="GLOW-QA.png" alt="GLOW-QA Pipeline Phases" width="600"/>
   <br>
-  <em>The Inductive Graph RAG Pipeline Phases</em>
+  <em>The GLOW-QA Pipeline Phases</em>
 </p>
-<p align="center" width="100%">
-  <img src="GraphRAG_vs_Reasoning_Hops_page.jpg" alt="The accuracy of predictive query answering versus the required reasoning depth using 4 pipelines LLM, GraphRAG, GNN-RAG, and GNN Graph-RAG. " width="600"/>
+<p align="center" width="30%">
+  <img src="table1.png" alt="Average accuracy (%) on open-world KGQA tasks, grouped by reasoning hop count. GLOW-GN sig- nificantly outperforms the baseline methods, especially on both 1-hop and 2-hop questions. All methods use Qwen3-8B as the underlying LLM " width="600"/>
   <br>
-  <em>The accuracy of predictive query answering versus the required reasoning depth using 4 pipelines LLM, GraphRAG, GNN-RAG, and GNN Graph-RAG. The higher the 
-      reasoning depth the clear need to incorporate the structural embedding via GNN to improve the LLM reasoning ability.</em>
 </p>
+
+### scripts
+To RUN GLOW-QA Pipeline
+```python
+python src/GLOW.py  --llm_model  qwen3:8b --dataset_name biokg --runs 3
+```
