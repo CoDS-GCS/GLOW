@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="GLOW-QA" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="GLOW-QA" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="AskGNN" project-jdk-type="Python SDK" />
 </project>
