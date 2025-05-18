@@ -1,11 +1,15 @@
 from Utils.evaluate import eval_LLM_WC
-from Utils.GLOW_Bench import generate_biokg_targets, generate_biokg_target_context,drug_dict_pred_class,drug_dict_pred
-from Utils.evaluate import eval_predictions_Exact
-from Utils.GNN_KGMeta import calc_acc_gnn
+from Utils.GLOW_Bench import generate_targets_and_RC
+from Utils.evaluate import eval_predictions_Exact,llm_as_judge
+from Utils.GNN_KGMeta import calc_acc_gnn,calc_GNN_predictions_acc
+from Utils.ollamaAPI import chat
 from glow_parser import args
+import time
 import pandas as pd
-model_names=["gpt-4o-mini","deepseek-chat","deepseek-r1","granite3.3","gemini-1.5-flash","llama3.2:3b","qwen3:8b","phi4-mini"]
-model_name="qwen3:8b"
+import pickle
+
+# model_name="qwen3:8b"
+model_name=args.llm_model
 
 def Answer_LLM_WOC_QPerPrompt(ground_truth_dict,class_dict):
   ################## Questions ###########################
@@ -51,7 +55,6 @@ def Answer_LLM_WOC_QPerPrompt(ground_truth_dict,class_dict):
     # print("\n\n")
   return predictd_WOC_dict,predictd_WOC_time_dict
 
-import time
 def Answer_LLM_WOC(ground_truth_dict,class_dict):
   ################## Questions ###########################
   predictd_WOC_dict={}
@@ -106,9 +109,7 @@ def eval_LLM_WOC(ground_truth_dict,predictd_WOC_dict):
       merged_df=merged_df.head(len(res))
       merged_df["is_true_pred"]=list(l1)
       merged_df["pred_similarity_score"]=list(l2)
-      # print("################merged_df###############",merged_df)
-      # merged_df["is_true_pred"]= merged_df.apply(lambda row: compare_strings(row,col_title+"_txt",col_title+"_y"),axis=1)
-      # merged_df["pred_similarity_score"]= merged_df.apply(lambda row: get_similarity_score(row,col_title+"_txt",col_title+"_y"),axis=1)
+
       WOC_acc_res[k]=[sum(merged_df["is_true_pred"])/len(merged_df),sum(merged_df["pred_similarity_score"])/len(merged_df), sum(merged_df["is_true_pred"])]
       merged_df_res[k]=merged_df
     else:
@@ -119,7 +120,6 @@ def eval_LLM_WOC(ground_truth_dict,predictd_WOC_dict):
   return WOC_acc_res,merged_df_res
 
 def Answer_LLM_WC_QPerPrompt(ground_truth_dict,ground_truth_context_dict,class_dict,GNN_Answers_dict=None):
-  ################## Questions ###########################
   predictd_WC_dict={}
   predictd_WC_time_dict={}
   for idx, (k,v) in enumerate(ground_truth_dict.items()):
@@ -132,7 +132,7 @@ def Answer_LLM_WC_QPerPrompt(ground_truth_dict,ground_truth_context_dict,class_d
     print("target_lst=",target_lst)
     for p in target_lst:
       if p in ground_truth_context_dict[k].keys():
-        targets_context_str+=f"{target_type}:{target_title_dict[p]} <tab> {target_type} Information: {ground_truth_context_dict[k][p]}\n"
+          targets_context_str+=f"{target_type}:{target_title_dict[p]} <tab> {target_type} Information: {ground_truth_context_dict[k][p]}\n"
       else:
           targets_context_str+=f"{target_type}:{target_title_dict[p]} <tab> {target_type}\n"
     possible_predictions_str=None
@@ -171,10 +171,7 @@ def Answer_LLM_WC_QPerPrompt(ground_truth_dict,ground_truth_context_dict,class_d
       ans_df=pd.DataFrame(answers_lst,columns=["target",col_title]) # remove URLs Patterns
     except:
       ans_df=pd.DataFrame([['None','None']],columns=["target",col_title]) # remove URLs Patterns
-
-    # ans_df['target']=ans_df['target'].apply(lambda x:x.split("/")[-1].replace("_"," "))
-    predictd_WC_dict[k]=(ans_df,response,usage_lst,full_response)
-    # print("\n\n")
+    predictd_WC_dict[k]=(ans_df,usage_lst)
   return predictd_WC_dict,predictd_WC_time_dict
 
 def Answer_LLM_WC(ground_truth_dict,ground_truth_context_dict,class_dict,GNN_Answers_dict=None):
@@ -210,7 +207,7 @@ def Answer_LLM_WC(ground_truth_dict,ground_truth_context_dict,class_dict,GNN_Ans
                           {targets_context_str}.\n
                           ---return answer in format  {target_type} name||the Prediction per line.
                           ---Note: return the {target_type} Name and replace underscore with space.
-                          \\\Answer:"""
+                          Answer:"""
     print("question_messsage=",question_messsage)
     # response =chat_engine.chat(question_messsage)
     response,usage,full_reponse=chat(model=model_name,prompt_in=question_messsage)
@@ -223,10 +220,8 @@ def Answer_LLM_WC(ground_truth_dict,ground_truth_context_dict,class_dict,GNN_Ans
     except:
       ans_df=pd.DataFrame([['None','None']],columns=["target",col_title]) # remove URLs Patterns
     ans_df['target']=ans_df['target'].apply(lambda x:x.split("/")[-1].replace("_"," "))
-    predictd_WC_dict[k]=(ans_df,response,usage,full_response)
-    # print("\n\n")
+    predictd_WC_dict[k]=(ans_df,usage)
   return predictd_WC_dict,predictd_WC_time_dict
-
 
 def get_runs_mean_and_std(runs_lst, Accuracy=True):
     join_by_k = {}
@@ -245,45 +240,20 @@ def get_runs_mean_and_std(runs_lst, Accuracy=True):
         runs_acc_res_std[k] = join_by_k_df.std(ddof=1).tolist()
     return runs_acc_res_mean, runs_acc_res_std, join_by_k
 
-
-import pickle
-
-
-def save_dataset(KG="BioKG"):
-    with open(f'GLOW-QA_dataset/{KG}_ground_truth_dict.pickle', 'wb') as file:
-        pickle.dump(ground_truth_dict, file)
-    with open(f'GLOW-QA_dataset/{KG}_ground_truth_context_dict.pickle', 'wb') as file:
-        pickle.dump(ground_truth_context_dict, file)
-    with open(f'GLOW-QA_dataset/{KG}_ground_dict_pred_class.pickle', 'wb') as file:
-        pickle.dump(drug_dict_pred_class, file)
+def save_pipeline_results(predictd_results_dic,predictd_time_dict,merged_results_dic,run_lst_dic,model_name,KG="BioKG"):
     with open(f'GLOW-QA_dataset/{KG}_GNN_Materlized_answers_dict.pickle', 'wb') as file:
         pickle.dump(GNN_Materlized_answers_dict, file)
-
-    predictd_results_dic = {"predictd_LLMOnly_dict": predictd_LLMOnly_dict, "predictd_LLMOnly_dict": predictd_WOC_dict,
-                            "predictd_WC_dict": predictd_WC_dict, "predictd_LLMGNN_dict": predictd_LLMGNN_dict}
     with open(f'GLOW-QA_dataset/{KG}_{model_name}_predictd_results_dic.pickle', 'wb') as file:
         pickle.dump(predictd_results_dic, file)
 
-    predictd_time_dict = {"predictd_LLMOnly_time_dict": predictd_LLMOnly_time_dict,
-                          "predictd_WOC_time_dict": predictd_WOC_time_dict,
-                          "predictd_WC_time_dict": predictd_WC_time_dict,
-                          "predictd_LLMGNN_time_dict": predictd_LLMGNN_time_dict}
     with open(f'GLOW-QA_dataset/{KG}_{model_name}_predictd_time_dict.pickle', 'wb') as file:
         pickle.dump(predictd_time_dict, file)
 
-    merged_results_dic = {"LLMOnly_merged_df": None, "merged_WOC_df": merged_WOC_df, "merged_WC_df": merged_WC_df,
-                          "LLMGNN_merged_df": LLMGNN_merged_df}
     with open(f'GLOW-QA_dataset/{KG}_{model_name}_merged_results_dic.pickle', 'wb') as file:
         pickle.dump(merged_results_dic, file)
 
-    run_lst_dic = {"LLMOnly_runs_lst": LLMOnly_runs_lst, "WOC_runs_lst": WOC_runs_lst, "WC_runs_lst": WC_runs_lst,
-                   "GNN_runs_lst": GNN_run_lst, "GNNGRAG_run_lst": GNNGRAG_run_lst}
     with open(f'GLOW-QA_dataset/{KG}_{model_name}_run_lst_dic.pickle', 'wb') as file:
         pickle.dump(run_lst_dic, file)
-
-
-save_dataset(KG="BioKG")
-
 
 def calc_tokens():
     for pipline in [predictd_LLMOnly_dict, predictd_WOC_dict, predictd_WC_dict, predictd_LLMGNN_dict]:
@@ -293,7 +263,6 @@ def calc_tokens():
             tokens_lst = [elem['eval_count'] for elem in pipline[k][2]]
             total_tokens.append(sum(tokens_lst) / len(tokens_lst))
         print(f'avg_tokens={sum(total_tokens) / len(total_tokens)}')
-
 
 def calc_answer_time():
     pred_lst = [predictd_LLMOnly_dict, predictd_WOC_dict, predictd_WC_dict, predictd_LLMGNN_dict]
@@ -307,15 +276,20 @@ def calc_answer_time():
         print(sum(time_lst) / len(time_lst))
         print("<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>")
 if __name__ == '__main__':
-
-    ground_truth_dict,dict_pred=generate_biokg_targets(targets_count=100,offset=0,filter_year=2006,dict_pred=drug_dict_pred,class_dict=drug_dict_pred_class)
-    ground_truth_context_dict=generate_biokg_target_context(ground_truth_dict,dict_pred)
-    Runs=args.runs
+    predictd_LLMOnly_dict,predictd_WOC_dict,predictd_WC_dict,predictd_LLMGNN_dict ={},{},{},{}
+    predictd_LLMOnly_time_dict,predictd_WOC_time_dict,predictd_WC_time_dict,predictd_LLMGNN_time_dict={},{},{},{}
+    merged_LLMOnly_df,merged_WOC_df, merged_WC_df,LLMGNN_merged_df={},{},{},{}
+    LLMOnly_runs_lst, WOC_runs_lst, WC_runs_lst, GNN_run_lst, GNNGRAG_run_lst={},{},{},{},{}
+    #######################
+    ground_truth_dict, pred_class_dict, ground_truth_context_dict=generate_targets_and_RC(args.dataset_name)
     WOC_runs_lst,WC_runs_lst,LLMOnly_runs_lst=[],[],[]
-    for i in range(Runs):
+    for i in range(args.runs):
+        print("###########Start LLM Only Prompts########")
         predictd_LLMOnly_dict,predictd_LLMOnly_time_dict=Answer_LLM_WOC_QPerPrompt(ground_truth_dict,None)
-        predictd_WOC_dict,predictd_WOC_time_dict=Answer_LLM_WOC_QPerPrompt(ground_truth_dict,drug_dict_pred_class)
-        predictd_WC_dict,predictd_WC_time_dict=Answer_LLM_WC_QPerPrompt(ground_truth_dict,ground_truth_context_dict,drug_dict_pred_class)
+        print("###########Start GLOW-L Prompts########")
+        predictd_WOC_dict,predictd_WOC_time_dict=Answer_LLM_WOC_QPerPrompt(ground_truth_dict,pred_class_dict)
+        print("###########Start GLOW-G Prompts########")
+        predictd_WC_dict,predictd_WC_time_dict=Answer_LLM_WC_QPerPrompt(ground_truth_dict,ground_truth_context_dict,pred_class_dict)
 
         LLMOnly_acc_res,merged_LLMOnly_df=eval_predictions_Exact(ground_truth_dict,predictd_LLMOnly_dict)
         LLMOnly_runs_lst.append([LLMOnly_acc_res,predictd_LLMOnly_time_dict])
@@ -324,30 +298,45 @@ if __name__ == '__main__':
         WC_acc_res,merged_WC_df=eval_predictions_Exact(ground_truth_dict,predictd_WC_dict)
         WC_runs_lst.append([WC_acc_res,predictd_WC_time_dict])
 
+        print("###########Start GLOW-N Prompts########")
         GNN_run_lst=[]
-        for i in range(Runs):
+        for i in range(args.runs):
           GNN_acc_res_dict={}
           GNN_answers_dict={}
           GNN_times_dict={}
           for k,v in ground_truth_dict.items():
-              GNN_acc_res_dict[k], GNN_answers_dict[k],GNN_times_dict[k]=calc_GNN_predictions_acc(ground_truth_dict,drug_dict_pred_class,k=k)
+              GNN_acc_res_dict[k], GNN_answers_dict[k],GNN_times_dict[k]=calc_GNN_predictions_acc(ground_truth_dict,pred_class_dict,k=k)
           GNN_run_lst.append([GNN_acc_res_dict,GNN_times_dict,GNN_answers_dict])
           GNN_Materlized_answers_dict={}
           for k in ground_truth_dict.keys():
-            ground_truth_dict[k]['GNN_pred']=ground_truth_dict[k]['target'].apply(lambda x:drug_dict_pred_class[k]['classes'][GNN_answers_dict[k][x]] if GNN_answers_dict[k][x] in drug_dict_pred_class[k]['classes'].keys() else None)
+            ground_truth_dict[k]['GNN_pred']=ground_truth_dict[k]['target'].apply(lambda x:pred_class_dict[k]['classes'][GNN_answers_dict[k][x]] if GNN_answers_dict[k][x] in pred_class_dict[k]['classes'].keys() else None)
             GNN_Materlized_answers_dict[k]=list(ground_truth_dict[k]['GNN_pred'].values)
           GNN_Materlized_answers_dict
 
-
+        print("###########Start GLOW-GN Prompts########")
         GNNGRAG_run_lst=[]
-        for i in range(Runs):
-          predictd_LLMGNN_dict,predictd_LLMGNN_time_dict=Answer_LLM_WC_QPerPrompt(ground_truth_dict,ground_truth_context_dict,drug_dict_pred_class,GNN_Materlized_answers_dict)
+        for i in range(args.runs):
+          predictd_LLMGNN_dict,predictd_LLMGNN_time_dict=Answer_LLM_WC_QPerPrompt(ground_truth_dict,ground_truth_context_dict,pred_class_dict,GNN_Materlized_answers_dict)
           LLMGNN_acc_res,LLMGNN_merged_df=eval_predictions_Exact(ground_truth_dict,predictd_LLMGNN_dict)
           GNNGRAG_run_lst.append([LLMGNN_acc_res,predictd_LLMGNN_time_dict])
 
+
+    ############### Save The Pipeline Answers ################
+    predictd_results_dic = {"predictd_LLMOnly_dict": predictd_LLMOnly_dict, "predictd_LLMOnly_dict": predictd_WOC_dict,
+                            "predictd_WC_dict": predictd_WC_dict, "predictd_LLMGNN_dict": predictd_LLMGNN_dict}
+    predictd_time_dict = {"predictd_LLMOnly_time_dict": predictd_LLMOnly_time_dict,
+                          "predictd_WOC_time_dict": predictd_WOC_time_dict,
+                          "predictd_WC_time_dict": predictd_WC_time_dict,
+                          "predictd_LLMGNN_time_dict": predictd_LLMGNN_time_dict}
+    merged_results_dic = {"LLMOnly_merged_df": merged_LLMOnly_df, "merged_WOC_df": merged_WOC_df, "merged_WC_df": merged_WC_df,
+                          "LLMGNN_merged_df": LLMGNN_merged_df}
+    run_lst_dic = {"LLMOnly_runs_lst": LLMOnly_runs_lst, "WOC_runs_lst": WOC_runs_lst, "WC_runs_lst": WC_runs_lst,
+                   "GNN_runs_lst": GNN_run_lst, "GNNGRAG_run_lst": GNNGRAG_run_lst}
+    save_pipeline_results(predictd_results_dic,predictd_time_dict,merged_results_dic,run_lst_dic,args.model_name,KG=args.dataset_name)
+    ################ Print Results ################
     final_results_dict={}
     for k in LLMOnly_acc_res:
         final_results_dict[k]=[]
         for res_dic in [LLMOnly_acc_res,WOC_acc_res,WC_acc_res,GNN_acc_res_dict,LLMGNN_acc_res]:
             final_results_dict[k].append(res_dic[k][0])
-    pd.DataFrame(final_results_dict).transpose()
+    print(pd.DataFrame(final_results_dict).transpose())

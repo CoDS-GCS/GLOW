@@ -2,13 +2,10 @@ import re
 import requests
 import pandas as pd
 from io import StringIO
-import ast
-# This function can be used if you only need the last segment of the uri not the whole URI
 
-KGMETA_SPARQLendpointUrl = "http://206.12.98.118:8890/sparql/"
-SPARQLendpointUrl="http://206.12.97.2:8890/sparql/" ##LinkedMDB KG endpoint
-# NamedGraph_URI="https://dblp2022.org"
-NamedGraph_URI="http://www.biokg.com"
+KGMETA_SPARQLendpointUrl = "http://206.12.98.118:8890/sparql/" ## The trained GNN Models Meta-data KG
+SPARQLendpointUrl_dict={"biokg":"http://206.12.97.2:8890/sparql/"} ## SPARQL endpoint per KG
+NamedGraph_URI_dict={"biokg":"http://www.biokg.com"} ## Named graph URI per KG
 generic_ignore_predicates= ['http://www.w3.org/1999/02/22-rdf-syntax-ns#type', 'http://www.w3.org/2002/07/owl#sameAs',
     'http://schema.org/image', 'http://schema.org/sameAs',
     'http://www.w3.org/2000/01/rdf-schema#comment', 'http://schema.org/logo',
@@ -26,7 +23,7 @@ generic_ignore_predicates= ['http://www.w3.org/1999/02/22-rdf-syntax-ns#type', '
     'http://dbpedia.org/ontology/wikiPageExternalLink', 'http://dbpedia.org/ontology/abstract',
     'http://xmlns.com/foaf/0.1/depiction', 'http://xmlns.com/foaf/0.1/homepage',
     'http://dbpedia.org/property/no', 'https://dbpedia.org/property/oclc',
-    'http://dbpedia.org/ontology/dcc']
+    'http://dbpedia.org/ontology/dcc'] ## List of predicats to ignore
 
 def defrag_uri(uri):
     pattern = r'[#/]([^/#]+)$'
@@ -38,16 +35,12 @@ def defrag_uri(uri):
         return name
     else:
         return uri
-
-
 def get_triple_representation(triple):
     output = list()
     for el in triple:
         output.append(defrag_uri(str(el)))
         # output.append(str(el))
     return tuple(output)
-
-
 def serialize_subgraph(triples, ignore_subject=False):
     triple_list = []
     for triple in triples:
@@ -63,7 +56,6 @@ def serialize_subgraph(triples, ignore_subject=False):
     else:
       double_quote_triples = [f'("{triple[0]}", "{triple[1]}", "{triple[2]}")' for triple in triple_list]
     return '[' + ', '.join(double_quote_triples) + ']'
-
 def executeSparqlQuery(query,SPARQLendpointUrl,firstRowHeader=True):
     """
     Execute sparql query through dopost and return results in form of datafarme.

@@ -1,4 +1,4 @@
-from ollamaAPI import chat
+from Utils.ollamaAPI import chat
 import ast
 import pandas as pd
 def llm_as_judge(TP_items_lst,model_name):
