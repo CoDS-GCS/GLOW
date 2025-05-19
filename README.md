@@ -18,5 +18,5 @@ To RUN GLOW-QA Pipelines
 python src/GLOW.py  --llm_model  qwen3:8b --dataset_name biokg --runs 3 --glow-v All --top-k 3
 ```
 - <p>llm_model choices=["gpt-4o-mini","deepseek-chat","deepseek-r1","granite3.3","gemini-1.5-flash","llama3.2:3b","qwen3:8b","phi4-mini"]</p>
-- <p>dataset_name choices=['biokg','linkedIMDB','YAGO4','crunchBase','arxiv2023','ogbn_arxiv','amazon-product']</p>
+- <p>dataset_name choices=['biokg','linkedIMDB','yago4-person','yago4-creativwork','crunchbase','arxiv2023','ogbnArxiv','ogbnProduct']</p>
 - <p>glow-v choices=['L','GN','G','N','LLM','All']</p>

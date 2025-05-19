@@ -1,0 +1,3 @@
+Dear Reviewer:
+You can finr the GLOW-QA system anonymized Github repository is here:
+https://gitfront.io/r/HGNN/CkPDwEKUakM9/GLOW/

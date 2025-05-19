@@ -2,10 +2,6 @@ import re
 import requests
 import pandas as pd
 from io import StringIO
-
-KGMETA_SPARQLendpointUrl = "http://206.12.98.118:8890/sparql/" ## The trained GNN Models Meta-data KG
-SPARQLendpointUrl_dict={"biokg":"http://206.12.97.2:8890/sparql/"} ## SPARQL endpoint per KG
-NamedGraph_URI_dict={"biokg":"http://www.biokg.com"} ## Named graph URI per KG
 generic_ignore_predicates= ['http://www.w3.org/1999/02/22-rdf-syntax-ns#type', 'http://www.w3.org/2002/07/owl#sameAs',
     'http://schema.org/image', 'http://schema.org/sameAs',
     'http://www.w3.org/2000/01/rdf-schema#comment', 'http://schema.org/logo',
@@ -24,7 +20,6 @@ generic_ignore_predicates= ['http://www.w3.org/1999/02/22-rdf-syntax-ns#type', '
     'http://xmlns.com/foaf/0.1/depiction', 'http://xmlns.com/foaf/0.1/homepage',
     'http://dbpedia.org/property/no', 'https://dbpedia.org/property/oclc',
     'http://dbpedia.org/ontology/dcc'] ## List of predicats to ignore
-
 def defrag_uri(uri):
     pattern = r'[#/]([^/#]+)$'
     match = re.search(pattern, uri)

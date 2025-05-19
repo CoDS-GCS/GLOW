@@ -1,5 +1,4 @@
-from Utils.evaluate import eval_LLM_WC
-from Utils.GLOW_Bench import generate_targets_and_RC
+from Utils.GLOW_Bench import generate_targets_and_RC,kg_metadata
 from Utils.evaluate import eval_predictions_Exact,llm_as_judge
 from Utils.GNN_KGMeta import calc_acc_gnn,calc_GNN_predictions_acc
 from Utils.ollamaAPI import chat
@@ -11,15 +10,14 @@ import pickle
 # model_name="qwen3:8b"
 model_name=args.llm_model
 
-def Answer_LLM_WOC_QPerPrompt(ground_truth_dict,class_dict):
+def Answer_LLM_WOC_QPerPrompt(ds_name,ground_truth_dict,class_dict):
   ################## Questions ###########################
   predictd_WOC_dict={}
   predictd_WOC_time_dict={}
+  kg=ds_name.split("-")[0]
   for idx, (k,v) in enumerate(ground_truth_dict.items()):
     target_type=k.split('-')[0]
     col_title=k.split('-')[1]
-    # listOfTargetsStr="\n".join(v["target"].unique().tolist())
-    listOfTargetsStr="\n".join(v["target_txt"].unique().tolist())
     possible_predictions_str=None
     if class_dict and class_dict[k]['classes']:
        possible_predictions_str=",".join(list(class_dict[k]['classes'].values()))
@@ -28,7 +26,7 @@ def Answer_LLM_WOC_QPerPrompt(ground_truth_dict,class_dict):
     Answers_usage_list=[]
     for idx , vt in enumerate(v["target_txt"]):
       print(f"Q_idx:{idx}/{len(v['target_txt'])}")
-      question_messsage=f"""predict the chemical {col_title} for the following {target_type} from the biomedical knowledge graph (BioKG).
+      question_messsage=f"""predict the {kg_metadata[kg][0]} {col_title} for the following {target_type} from the {kg_metadata[kg][1]}.
                             {"" if possible_predictions_str is None else "Help: The possible list of "+col_title+"s are ["+possible_predictions_str+"]"}
                             {target_type}: {vt}
                             return the answer only without any context, explaination, thinking or analysis.
@@ -55,10 +53,11 @@ def Answer_LLM_WOC_QPerPrompt(ground_truth_dict,class_dict):
     # print("\n\n")
   return predictd_WOC_dict,predictd_WOC_time_dict
 
-def Answer_LLM_WOC(ground_truth_dict,class_dict):
+def Answer_LLM_WOC(ds_name,ground_truth_dict,class_dict):
   ################## Questions ###########################
   predictd_WOC_dict={}
   predictd_WOC_time_dict={}
+  kg=ds_name.split("-")[0]
   for idx, (k,v) in enumerate(ground_truth_dict.items()):
     start_time = time.time()
     target_type=k.split('-')[0]
@@ -68,7 +67,7 @@ def Answer_LLM_WOC(ground_truth_dict,class_dict):
     possible_predictions_str=None
     if class_dict and class_dict[k]['classes']:
        possible_predictions_str=",".join(list(class_dict[k]['classes'].values()))
-    question_messsage=f"""predict the chemical {col_title} for each {target_type} in the following list of {target_type}s from the biomedical knowledge graph (BioKG).
+    question_messsage=f"""predict the {kg_metadata[kg][0]} {col_title} for each {target_type} in the following list of {target_type}s from the {kg_metadata[kg][1]}.
                           return in format: {target_type}||the Prediction per line.
                           return the {target_type} name while replace underscore with space.
                           do not return any context or analysis.
@@ -119,9 +118,10 @@ def eval_LLM_WOC(ground_truth_dict,predictd_WOC_dict):
     # print(merged_df)
   return WOC_acc_res,merged_df_res
 
-def Answer_LLM_WC_QPerPrompt(ground_truth_dict,ground_truth_context_dict,class_dict,GNN_Answers_dict=None):
+def Answer_LLM_WC_QPerPrompt(ds_name,ground_truth_dict,ground_truth_context_dict,class_dict,GNN_Answers_dict=None):
   predictd_WC_dict={}
   predictd_WC_time_dict={}
+  kg=ds_name.split("-")[0]
   for idx, (k,v) in enumerate(ground_truth_dict.items()):
     target_type=k.split('-')[0]
     col_title=k.split('-')[1]
@@ -148,7 +148,7 @@ def Answer_LLM_WC_QPerPrompt(ground_truth_dict,ground_truth_context_dict,class_d
     times_lst=[]
     for idx,vt in enumerate(target_lst):
       print(f"Q_idx:{idx}/{len(target_lst)}")
-      question_messsage=f"""predict the chemical {col_title} for the following {target_type} from Linked the biomedical knowledge graph (BioKG).
+      question_messsage=f"""predict the {kg_metadata[kg][0]} {col_title} for the following {target_type} from Linked the {kg_metadata[kg][1]}.
                             use the given information context per {target_type} to refine your prediction.
                             {"" if possible_predictions_str is None else "Help: The possible list of "+col_title+"s are ["+possible_predictions_str+"]"}
                             {"" if GNN_Answers_str is None else f"Verfy the following answer generated using a Graph Neural Network Model: {GNN_Answers_dict[k][idx]} ."}
@@ -174,10 +174,11 @@ def Answer_LLM_WC_QPerPrompt(ground_truth_dict,ground_truth_context_dict,class_d
     predictd_WC_dict[k]=(ans_df,usage_lst)
   return predictd_WC_dict,predictd_WC_time_dict
 
-def Answer_LLM_WC(ground_truth_dict,ground_truth_context_dict,class_dict,GNN_Answers_dict=None):
+def Answer_LLM_WC(ds_name,ground_truth_dict,ground_truth_context_dict,class_dict,GNN_Answers_dict=None):
   ################## Questions ###########################
   predictd_WC_dict={}
   predictd_WC_time_dict={}
+  kg=ds_name.split("-")[0]
   for idx, (k,v) in enumerate(ground_truth_dict.items()):
     start_time = time.time()
     target_type=k.split('-')[0]
@@ -199,7 +200,7 @@ def Answer_LLM_WC(ground_truth_dict,ground_truth_context_dict,class_dict,GNN_Ans
     GNN_Answers_str=None
     if GNN_Answers_dict and k in GNN_Answers_dict.keys():
       GNN_Answers_str=str(GNN_Answers_dict[k])
-    question_messsage=f"""predict the chemical {col_title} for each {target_type} in the following list of {target_type}s from Linked the biomedical knowledge graph (BioKG). use the given information context per {target_type} to refine your prediction.
+    question_messsage=f"""predict the {kg_metadata[kg][0]}  {col_title} for each {target_type} in the following list of {target_type}s from {kg_metadata[kg][1]}. use the given information context per {target_type} to refine your prediction.
                           {"" if possible_predictions_str is None else "Help: The possible list of "+col_title+"s are ["+possible_predictions_str+"]"}
                           {"" if GNN_Answers_str is None else f"Verfy the following list of answers generated using a Graph Neural Network Model for the given list of {target_type}s. the answers are mapped to questions one to one. GNN Answers={GNN_Answers_str} ."}
                           do not return any context or analysis.
@@ -285,13 +286,13 @@ if __name__ == '__main__':
     WOC_runs_lst,WC_runs_lst,LLMOnly_runs_lst=[],[],[]
     for i in range(args.runs):
         print("###########Start LLM Only Prompts########")
-        predictd_LLMOnly_dict,predictd_LLMOnly_time_dict=Answer_LLM_WOC_QPerPrompt(ground_truth_dict,None)
+        predictd_LLMOnly_dict,predictd_LLMOnly_time_dict=Answer_LLM_WOC_QPerPrompt(args.dataset_name, ground_truth_dict,None)
         print("###########Start GLOW-L Prompts########")
-        predictd_WOC_dict,predictd_WOC_time_dict=Answer_LLM_WOC_QPerPrompt(ground_truth_dict,pred_class_dict)
+        predictd_WOC_dict,predictd_WOC_time_dict=Answer_LLM_WOC_QPerPrompt(args.dataset_name,ground_truth_dict,pred_class_dict)
         print("###########Start GLOW-G Prompts########")
-        predictd_WC_dict,predictd_WC_time_dict=Answer_LLM_WC_QPerPrompt(ground_truth_dict,ground_truth_context_dict,pred_class_dict)
+        predictd_WC_dict,predictd_WC_time_dict=Answer_LLM_WC_QPerPrompt(args.dataset_name,ground_truth_dict,ground_truth_context_dict,pred_class_dict)
 
-        LLMOnly_acc_res,merged_LLMOnly_df=eval_predictions_Exact(ground_truth_dict,predictd_LLMOnly_dict)
+        LLMOnly_acc_res,merged_LLMOnly_df=eval_predictions_Exact(args.dataset_name,ground_truth_dict,predictd_LLMOnly_dict)
         LLMOnly_runs_lst.append([LLMOnly_acc_res,predictd_LLMOnly_time_dict])
         WOC_acc_res,merged_WOC_df=eval_predictions_Exact(ground_truth_dict,predictd_WOC_dict)
         WOC_runs_lst.append([WOC_acc_res,predictd_WOC_time_dict])
@@ -316,7 +317,7 @@ if __name__ == '__main__':
         print("###########Start GLOW-GN Prompts########")
         GNNGRAG_run_lst=[]
         for i in range(args.runs):
-          predictd_LLMGNN_dict,predictd_LLMGNN_time_dict=Answer_LLM_WC_QPerPrompt(ground_truth_dict,ground_truth_context_dict,pred_class_dict,GNN_Materlized_answers_dict)
+          predictd_LLMGNN_dict,predictd_LLMGNN_time_dict=Answer_LLM_WC_QPerPrompt(args.dataset_name,ground_truth_dict,ground_truth_context_dict,pred_class_dict,GNN_Materlized_answers_dict)
           LLMGNN_acc_res,LLMGNN_merged_df=eval_predictions_Exact(ground_truth_dict,predictd_LLMGNN_dict)
           GNNGRAG_run_lst.append([LLMGNN_acc_res,predictd_LLMGNN_time_dict])
 

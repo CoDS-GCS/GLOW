@@ -1,5 +1,5 @@
 from Utils.utils import executeSparqlQuery
-from Utils.utils import KGMETA_SPARQLendpointUrl
+from Utils.GLOW_Bench import KGMETA_SPARQLendpointUrl
 from Utils.ollamaAPI import dopost
 import json
 import pandas as pd
