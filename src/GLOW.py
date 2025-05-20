@@ -11,7 +11,7 @@ import pickle
 model_name=args.llm_model
 
 def Answer_LLM_WOC_QPerPrompt(ds_name,ground_truth_dict,class_dict):
-  ################## Questions ###########################
+  system_prompt="You are an expert open world question answer (QA) system."
   predictd_WOC_dict={}
   predictd_WOC_time_dict={}
   kg=ds_name.split("-")[0]
@@ -32,10 +32,10 @@ def Answer_LLM_WOC_QPerPrompt(ds_name,ground_truth_dict,class_dict):
                             return the answer only without any context, explaination, thinking or analysis.
                             Answer:
                             """
-      print("question_messsage=",question_messsage)
+      # print("question_messsage=",question_messsage)
       # response =chat_engine.chat(question_messsage)
       start_time = time.time()
-      response,usage,full_response=chat(model=model_name,prompt_in=question_messsage)
+      response,usage,full_response=chat(model=model_name,prompt_in=question_messsage,system_prompt=system_prompt)
       print(f"Answer:{response}")
       Answers_lst.append([vt,response.split("Answer:")[-1].strip()])
       elapsed_time =time.time()-start_time
@@ -58,6 +58,7 @@ def Answer_LLM_WOC(ds_name,ground_truth_dict,class_dict):
   predictd_WOC_dict={}
   predictd_WOC_time_dict={}
   kg=ds_name.split("-")[0]
+  system_prompt = "You are an expert open world question answer (QA) system."
   for idx, (k,v) in enumerate(ground_truth_dict.items()):
     start_time = time.time()
     target_type=k.split('-')[0]
@@ -74,9 +75,8 @@ def Answer_LLM_WOC(ds_name,ground_truth_dict,class_dict):
                           {"" if possible_predictions_str is None else "Help: The possible list of "+col_title+"s are ["+possible_predictions_str+"]"}
                           ---------------- list of {target_type}s  ----------------------
                           {listOfTargetsStr}"""
-    print("question_messsage=",question_messsage)
-    # response =chat_engine.chat(question_messsage)
-    response,usage,full_response=chat(model=model_name,prompt_in=question_messsage)
+    # print("question_messsage=",question_messsage)
+    response,usage,full_response=chat(model=model_name,prompt_in=question_messsage,system_prompt=system_prompt)
     elapsed_time =time.time()-start_time
     predictd_WOC_time_dict[k]=elapsed_time
     print(f"response for {k}={response}")
@@ -108,20 +108,18 @@ def eval_LLM_WOC(ground_truth_dict,predictd_WOC_dict):
       merged_df=merged_df.head(len(res))
       merged_df["is_true_pred"]=list(l1)
       merged_df["pred_similarity_score"]=list(l2)
-
       WOC_acc_res[k]=[sum(merged_df["is_true_pred"])/len(merged_df),sum(merged_df["pred_similarity_score"])/len(merged_df), sum(merged_df["is_true_pred"])]
       merged_df_res[k]=merged_df
     else:
       WOC_acc_res[k]=[0,0, 0]
       merged_df_res[k]=None
-    # print(f"""{k} task: String Matching Accuracy={sum(merged_df["is_true_pred"])/len(merged_df)},Pred Similarity Score ={sum(merged_df["pred_similarity_score"])/len(merged_df)}, True answers Count={sum(merged_df["is_true_pred"])}""")
-    # print(merged_df)
   return WOC_acc_res,merged_df_res
 
 def Answer_LLM_WC_QPerPrompt(ds_name,ground_truth_dict,ground_truth_context_dict,class_dict,GNN_Answers_dict=None):
   predictd_WC_dict={}
   predictd_WC_time_dict={}
   kg=ds_name.split("-")[0]
+  system_prompt = "You are an expert open world question answer (QA) system."
   for idx, (k,v) in enumerate(ground_truth_dict.items()):
     target_type=k.split('-')[0]
     col_title=k.split('-')[1]
@@ -157,9 +155,9 @@ def Answer_LLM_WC_QPerPrompt(ds_name,ground_truth_dict,ground_truth_context_dict
                                 {ground_truth_context_dict[k][vt]} \n
                             do not return any context or analysis.
                             Answer:"""
-      print("question_messsage=",question_messsage)
+      # print("question_messsage=",question_messsage)
       start_time = time.time()
-      response,usage,full_reponse=chat(model=model_name,prompt_in=question_messsage)
+      response,usage,full_reponse=chat(model=model_name,prompt_in=question_messsage,system_prompt=system_prompt)
       answers_lst.append([vt,response.split("Answer:")[-1].strip()])
       usage_lst.append(usage)
       print(f"{response}")
@@ -179,6 +177,7 @@ def Answer_LLM_WC(ds_name,ground_truth_dict,ground_truth_context_dict,class_dict
   predictd_WC_dict={}
   predictd_WC_time_dict={}
   kg=ds_name.split("-")[0]
+  system_prompt = "You are an expert open world question answer (QA) system."
   for idx, (k,v) in enumerate(ground_truth_dict.items()):
     start_time = time.time()
     target_type=k.split('-')[0]
@@ -209,9 +208,8 @@ def Answer_LLM_WC(ds_name,ground_truth_dict,ground_truth_context_dict,class_dict
                           ---return answer in format  {target_type} name||the Prediction per line.
                           ---Note: return the {target_type} Name and replace underscore with space.
                           Answer:"""
-    print("question_messsage=",question_messsage)
-    # response =chat_engine.chat(question_messsage)
-    response,usage,full_reponse=chat(model=model_name,prompt_in=question_messsage)
+    # print("question_messsage=",question_messsage)
+    response,usage,full_reponse=chat(model=model_name,prompt_in=question_messsage,system_prompt=system_prompt)
     elapsed_time = time.time()-start_time
     predictd_WC_time_dict[k]=elapsed_time
     response=response.split("Here is the output:\n")[-1].split("the requested format:\n")[-1].replace("\n\n","\n").replace("```","").replace("\n\n","\n")
@@ -282,7 +280,7 @@ if __name__ == '__main__':
     merged_LLMOnly_df,merged_WOC_df, merged_WC_df,LLMGNN_merged_df={},{},{},{}
     LLMOnly_runs_lst, WOC_runs_lst, WC_runs_lst, GNN_run_lst, GNNGRAG_run_lst={},{},{},{},{}
     #######################
-    ground_truth_dict, pred_class_dict, ground_truth_context_dict=generate_targets_and_RC(args.dataset_name)
+    ground_truth_dict, pred_class_dict, ground_truth_context_dict=generate_targets_and_RC(args.dataset_name,load_from_disk=True)
     WOC_runs_lst,WC_runs_lst,LLMOnly_runs_lst=[],[],[]
     for i in range(args.runs):
         print("###########Start LLM Only Prompts########")

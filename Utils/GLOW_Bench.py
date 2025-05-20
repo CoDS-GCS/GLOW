@@ -1942,17 +1942,17 @@ def save_targets_and_RC(KG,ground_truth_dict, dict_pred,ground_truth_context_dic
   with open(f'../GLOW-QA_dataset/{KG}_ground_dict_pred_class.pickle', 'wb') as file:
     pickle.dump(dict_pred, file)
 def load_targets_and_RC(KG):
-  with open(f'../GLOW-QA_dataset/{KG}_ground_truth_dict.pickle', 'wb') as file:
+  with open(f'../GLOW-QA_dataset/{KG}_ground_truth_dict.pickle', 'rb') as file:
     ground_truth_dict=pickle.load(file)
-  with open(f'../GLOW-QA_dataset/{KG}_ground_truth_context_dict.pickle', 'wb') as file:
+  with open(f'../GLOW-QA_dataset/{KG}_ground_truth_context_dict.pickle', 'rb') as file:
     ground_truth_context_dict=pickle.load(file)
-  with open(f'../GLOW-QA_dataset/{KG}_ground_dict_pred_class.pickle', 'wb') as file:
+  with open(f'../GLOW-QA_dataset/{KG}_ground_dict_pred_class.pickle', 'rb') as file:
     dict_pred=pickle.load(file)
   return ground_truth_dict, dict_pred,ground_truth_context_dict
 def generate_targets_and_RC(kg="biokg",load_from_disk=False):
   ground_truth_dict, dict_pred, ground_truth_context_dict=None,None,None
   if load_from_disk:
-    round_truth_dict, dict_pred, ground_truth_context_dict=load_targets_and_RC(kg)
+    ground_truth_dict, dict_pred, ground_truth_context_dict=load_targets_and_RC(kg)
   else:
     if kg=="biokg":
       biokg_ds=biokg_GLOW_Bench(SPARQLendpointUrl_dict[kg])
