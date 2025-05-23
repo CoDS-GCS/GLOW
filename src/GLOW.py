@@ -124,15 +124,6 @@ def Answer_LLM_WC_QPerPrompt(ds_name,ground_truth_dict,ground_truth_context_dict
     target_type=k.split('-')[0]
     col_title=k.split('-')[1]
     target_lst=v["target"].unique().tolist()
-    target_title_df=ground_truth_dict[k][['target','target_txt']].drop_duplicates()
-    target_title_dict=dict(zip(target_title_df['target'],target_title_df['target_txt']))
-    targets_context_str=""
-    print("target_lst=",target_lst)
-    for p in target_lst:
-      if p in ground_truth_context_dict[k].keys():
-          targets_context_str+=f"{target_type}:{target_title_dict[p]} <tab> {target_type} Information: {ground_truth_context_dict[k][p]}\n"
-      else:
-          targets_context_str+=f"{target_type}:{target_title_dict[p]} <tab> {target_type}\n"
     possible_predictions_str=None
     if class_dict[k]['classes']:
        possible_predictions_str=",".join(list(class_dict[k]['classes'].values()))
@@ -147,14 +138,13 @@ def Answer_LLM_WC_QPerPrompt(ds_name,ground_truth_dict,ground_truth_context_dict
     for idx,vt in enumerate(target_lst):
       print(f"Q_idx:{idx}/{len(target_lst)}")
       question_messsage=f"""predict the {kg_metadata[kg][0]} {col_title} for the following {target_type} from Linked the {kg_metadata[kg][1]}.
-                            use the given information context per {target_type} to refine your prediction.
-                            {"" if possible_predictions_str is None else "Help: The possible list of "+col_title+"s are ["+possible_predictions_str+"]"}
-                            {"" if GNN_Answers_str is None else f"Verfy the following answer generated using a Graph Neural Network Model: {GNN_Answers_dict[k][idx]} ."}
-                            {target_type}: {vt} \n
-                            Entiy Related list of Information in format of (relation,value) : 
-                                {ground_truth_context_dict[k][vt]} \n
-                            do not return any context or analysis.
-                            Answer:"""
+use the given information context per {target_type} to refine your prediction.
+{"" if possible_predictions_str is None else "Help: The possible list of "+col_title+"s are ["+possible_predictions_str+"]"}
+{"" if GNN_Answers_str is None else f"Verfy the following answer generated using a Graph Neural Network Model: {GNN_Answers_dict[k][idx]} ."}
+The Question Main Entity: {target_type}-> {vt}
+{"" if ground_truth_context_dict is None else "The main entity Related list of Information in format of (relation,value):"+ground_truth_context_dict[k][vt]+"\n"}
+do not return any context or analysis.
+Answer:"""
       # print("question_messsage=",question_messsage)
       start_time = time.time()
       response,usage,full_reponse=chat(model=model_name,prompt_in=question_messsage,system_prompt=system_prompt)
@@ -275,13 +265,14 @@ def calc_answer_time():
         print(sum(time_lst) / len(time_lst))
         print("<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>")
 if __name__ == '__main__':
-    predictd_LLMOnly_dict,predictd_WOC_dict,predictd_WC_dict,predictd_LLMGNN_dict ={},{},{},{}
-    predictd_LLMOnly_time_dict,predictd_WOC_time_dict,predictd_WC_time_dict,predictd_LLMGNN_time_dict={},{},{},{}
-    merged_LLMOnly_df,merged_WOC_df, merged_WC_df,LLMGNN_merged_df={},{},{},{}
-    LLMOnly_runs_lst, WOC_runs_lst, WC_runs_lst, GNN_run_lst, GNNGRAG_run_lst={},{},{},{},{}
+    predictd_LLMOnly_dict,predictd_WOC_dict,predictd_WC_dict,predictd_GNN_dict,predictd_LLMGNN_dict ={},{},{},{},{}
+    predictd_LLMOnly_time_dict,predictd_WOC_time_dict,predictd_WC_time_dict,predictd_GNN_time_dict,predictd_LLMGNN_time_dict={},{},{},{},{}
+    merged_LLMOnly_df,merged_WOC_df, merged_WC_df,GNN_merged_df,LLMGNN_merged_df={},{},{},{},{}
+    LLMOnly_runs_lst, WOC_runs_lst, WC_runs_lst, GNNOnly_run_lst,GNN_run_lst, GNNGRAG_run_lst={},{},{},{},{},{}
     #######################
-    ground_truth_dict, pred_class_dict, ground_truth_context_dict=generate_targets_and_RC(args.dataset_name,load_from_disk=True)
+    ground_truth_dict, pred_class_dict, ground_truth_context_dict=generate_targets_and_RC(args.dataset_name,load_from_disk=args.generate_GlowBench==False)
     WOC_runs_lst,WC_runs_lst,LLMOnly_runs_lst=[],[],[]
+    GNNOnly_run_lst = []
     GNN_run_lst = []
     GNNGRAG_run_lst = []
     print(f"Args={args}")
@@ -303,18 +294,27 @@ if __name__ == '__main__':
             WC_acc_res,merged_WC_df=eval_predictions_Exact(ground_truth_dict,predictd_WC_dict)
             WC_runs_lst.append([WC_acc_res,predictd_WC_time_dict])
         if args.glow_v in ['N', 'All']:
-            print("###########Start GLOW-N Prompts########")
-            GNN_acc_res_dict={}
-            GNN_answers_dict={}
-            GNN_times_dict={}
+            print("###########Start GNN Only ########")
+            GNNOnly_acc_res_dict,predictd_GNN_dict={},{}
+            GNNOnly_answers_dict={}
+            GNNOnly_times_dict,predictd_GNN_time_dict={},{}
             for k,v in ground_truth_dict.items():
-                 GNN_acc_res_dict[k], GNN_answers_dict[k],GNN_times_dict[k]=calc_GNN_predictions_acc(ground_truth_dict,pred_class_dict,k=k)
-            GNN_run_lst.append([GNN_acc_res_dict,GNN_times_dict,GNN_answers_dict])
-            GNN_Materlized_answers_dict={}
+                 GNNOnly_acc_res_dict[k], GNNOnly_answers_dict[k],GNNOnly_times_dict[k]=calc_GNN_predictions_acc(ground_truth_dict,pred_class_dict,k=k)
+            GNNOnly_run_lst.append([GNNOnly_acc_res_dict,GNNOnly_times_dict,GNNOnly_answers_dict])
+            GNNOnly_Materlized_answers_dict={}
             for k in ground_truth_dict.keys():
-              ground_truth_dict[k]['GNN_pred']=ground_truth_dict[k]['target'].apply(lambda x:pred_class_dict[k]['classes'][GNN_answers_dict[k][x]] if GNN_answers_dict[k][x] in pred_class_dict[k]['classes'].keys() else None)
-              GNN_Materlized_answers_dict[k]=list(ground_truth_dict[k]['GNN_pred'].values)
-            # GNN_Materlized_answers_dict
+              ground_truth_dict[k]['GNN_pred']=ground_truth_dict[k]['target'].apply(lambda x:pred_class_dict[k]['classes'][GNNOnly_answers_dict[k][x]] if GNNOnly_answers_dict[k][x] in pred_class_dict[k]['classes'].keys() else None)
+              GNNOnly_Materlized_answers_dict[k]=list(ground_truth_dict[k]['GNN_pred'].values)
+
+            print("###########Start GLOW-N Prompts########")
+            predictd_GNN_dict, predictd_GNN_time_dict = Answer_LLM_WC_QPerPrompt(args.dataset_name,
+                                                                                       ground_truth_dict,
+                                                                                       None,
+                                                                                       pred_class_dict,
+                                                                                       GNNOnly_Materlized_answers_dict)
+            GNN_acc_res, GNN_merged_df = eval_predictions_Exact(ground_truth_dict, predictd_GNN_dict)
+            GNNGRAG_run_lst.append([GNN_acc_res, predictd_GNN_time_dict])
+
         if args.glow_v in ['GN', 'All']:
             print("###########Start GLOW-GN Prompts########")
             predictd_LLMGNN_dict,predictd_LLMGNN_time_dict=Answer_LLM_WC_QPerPrompt(args.dataset_name,ground_truth_dict,ground_truth_context_dict,pred_class_dict,GNN_Materlized_answers_dict)
@@ -323,20 +323,21 @@ if __name__ == '__main__':
 
     ############### Save The Pipeline Answers ################
     predictd_results_dic = {"predictd_LLMOnly_dict": predictd_LLMOnly_dict, "predictd_LLMOnly_dict": predictd_WOC_dict,
-                            "predictd_WC_dict": predictd_WC_dict, "predictd_LLMGNN_dict": predictd_LLMGNN_dict}
+                            "predictd_WC_dict": predictd_WC_dict, "predictd_GNN_dict": predictd_GNN_dict,"predictd_LLMGNN_dict": predictd_LLMGNN_dict}
     predictd_time_dict = {"predictd_LLMOnly_time_dict": predictd_LLMOnly_time_dict,
                           "predictd_WOC_time_dict": predictd_WOC_time_dict,
                           "predictd_WC_time_dict": predictd_WC_time_dict,
+                          "predictd_GNN_time_dict": predictd_GNN_time_dict,
                           "predictd_LLMGNN_time_dict": predictd_LLMGNN_time_dict}
     merged_results_dic = {"LLMOnly_merged_df": merged_LLMOnly_df, "merged_WOC_df": merged_WOC_df, "merged_WC_df": merged_WC_df,
-                          "LLMGNN_merged_df": LLMGNN_merged_df}
+                          "GNN_merged_df": GNN_merged_df,"LLMGNN_merged_df": LLMGNN_merged_df}
     run_lst_dic = {"LLMOnly_runs_lst": LLMOnly_runs_lst, "WOC_runs_lst": WOC_runs_lst, "WC_runs_lst": WC_runs_lst,
-                   "GNN_runs_lst": GNN_run_lst, "GNNGRAG_run_lst": GNNGRAG_run_lst}
+                   "GNNOnly_runs_lst": GNNOnly_run_lst, "GNN_run_lst": GNN_run_lst,"GNNGRAG_run_lst": GNNGRAG_run_lst}
     save_pipeline_results(predictd_results_dic,predictd_time_dict,merged_results_dic,run_lst_dic,args.model_name,KG=args.dataset_name)
     ################ Print Results ################
     final_results_dict={}
     for k in LLMOnly_acc_res:
         final_results_dict[k]=[]
-        for res_dic in [LLMOnly_acc_res,WOC_acc_res,WC_acc_res,GNN_acc_res_dict,LLMGNN_acc_res]:
+        for res_dic in [LLMOnly_acc_res,WOC_acc_res,WC_acc_res,GNNOnly_acc_res_dict,GNN_acc_res,LLMGNN_acc_res]:
             final_results_dict[k].append(res_dic[k][0])
     print(pd.DataFrame(final_results_dict).transpose())

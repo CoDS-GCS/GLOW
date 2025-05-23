@@ -1934,46 +1934,54 @@ def generate_arxiv2023_target_context(SPARQLendpointUrl,ground_truth_dict,dict_p
     print(ground_truth_context_dict[k])
   return ground_truth_context_dict
 ##########################################################################################################33
-def save_targets_and_RC(KG,ground_truth_dict, dict_pred,ground_truth_context_dict):
+def save_targets_and_RC(KG,ground_truth_dict, dict_pred,dict_pred_class,ground_truth_context_dict):
   with open(f'../GLOW-QA_dataset/{KG}_ground_truth_dict.pickle', 'wb') as file:
     pickle.dump(ground_truth_dict, file)
   with open(f'../GLOW-QA_dataset/{KG}_ground_truth_context_dict.pickle', 'wb') as file:
     pickle.dump(ground_truth_context_dict, file)
-  with open(f'../GLOW-QA_dataset/{KG}_ground_dict_pred_class.pickle', 'wb') as file:
+  with open(f'../GLOW-QA_dataset/{KG}_dict_pred_class.pickle', 'wb') as file:
+      pickle.dump(dict_pred_class, file)
+  with open(f'../GLOW-QA_dataset/{KG}_dict_pred.pickle', 'wb') as file:
     pickle.dump(dict_pred, file)
 def load_targets_and_RC(KG):
   with open(f'../GLOW-QA_dataset/{KG}_ground_truth_dict.pickle', 'rb') as file:
     ground_truth_dict=pickle.load(file)
   with open(f'../GLOW-QA_dataset/{KG}_ground_truth_context_dict.pickle', 'rb') as file:
     ground_truth_context_dict=pickle.load(file)
-  with open(f'../GLOW-QA_dataset/{KG}_ground_dict_pred_class.pickle', 'rb') as file:
+  with open(f'../GLOW-QA_dataset/{KG}_dict_pred_class.pickle', 'rb') as file:
+    dict_pred_class=pickle.load(file)
+  with open(f'../GLOW-QA_dataset/{KG}_dict_pred.pickle', 'rb') as file:
     dict_pred=pickle.load(file)
-  return ground_truth_dict, dict_pred,ground_truth_context_dict
+  return ground_truth_dict, dict_pred,dict_pred_class,ground_truth_context_dict
 def generate_targets_and_RC(kg="biokg",load_from_disk=False):
-  ground_truth_dict, dict_pred, ground_truth_context_dict=None,None,None
+  ground_truth_dict, dict_pred,dict_pred_class, ground_truth_context_dict=None,None,None,None
   if load_from_disk:
-    ground_truth_dict, dict_pred, ground_truth_context_dict=load_targets_and_RC(kg)
+    ground_truth_dict,dict_pred,dict_pred_class, ground_truth_context_dict=load_targets_and_RC(kg)
   else:
     if kg=="biokg":
       biokg_ds=biokg_GLOW_Bench(SPARQLendpointUrl_dict[kg])
+      dict_pred_class=biokg_ds.drug_dict_pred_class
       ground_truth_dict, dict_pred = generate_biokg_targets(SPARQLendpointUrl_dict[kg],biokg_ds.by_pubmid_BGP, targets_count=100, offset=0, filter_year=2006,
                                                           dict_pred=biokg_ds.drug_dict_pred, class_dict=biokg_ds.drug_dict_pred_class)
       ground_truth_context_dict = generate_biokg_target_context(SPARQLendpointUrl_dict[kg],ground_truth_dict, dict_pred)
-      save_targets_and_RC(kg,ground_truth_dict,dict_pred,ground_truth_context_dict)
+      save_targets_and_RC(kg,ground_truth_dict,dict_pred,dict_pred_class,ground_truth_context_dict)
     elif kg=="yago4-person":
       yago4_ds=yago4_GLOW_Bench(SPARQLendpointUrl_dict[kg.split("-")[0]])
+      dict_pred_class = yago4_ds.person_dict_pred_class
       ground_truth_dict, dict_pred = generate_yago4_person_targets(SPARQLendpointUrl_dict[kg.split("-")[0]], targets_count=50,offset=0,filter_year=1995,
                                                           dict_pred=yago4_ds.person_dict_pred, class_dict=yago4_ds.person_dict_pred_class)
       ground_truth_context_dict = generate_yago4_person_target_context(SPARQLendpointUrl_dict[kg.split("-")[0]],ground_truth_dict, dict_pred)
-      save_targets_and_RC(kg,ground_truth_dict,dict_pred,ground_truth_context_dict)
+      save_targets_and_RC(kg,ground_truth_dict,dict_pred,dict_pred_class,ground_truth_context_dict)
     elif kg=="yago4-creativwork":
       yago4_ds=yago4_GLOW_Bench(SPARQLendpointUrl_dict[kg.split("-")[0]])
+      dict_pred_class = yago4_ds.creativeWork_dict_pred_class
       ground_truth_dict, dict_pred = generate_yago4_creativeWork_targets(SPARQLendpointUrl_dict[kg.split("-")[0]],yago4_ds.by_performer_BGP, targets_count=50,offset=0,filter_year=1996,
                                                           dict_pred=yago4_ds.creativeWork_dict_pred, class_dict=yago4_ds.creativeWork_dict_pred_class)
       ground_truth_context_dict = generate_yago4_creativeWork_target_context(SPARQLendpointUrl_dict[kg.split("-")[0]],ground_truth_dict, dict_pred)
-      save_targets_and_RC(kg,ground_truth_dict,dict_pred,ground_truth_context_dict)
+      save_targets_and_RC(kg,ground_truth_dict,dict_pred,dict_pred_class,ground_truth_context_dict)
     elif kg == "crunchbase":
       crunchbase_ds = crunchbase_GLOW_Bench(SPARQLendpointUrl_dict[kg.split("-")[0]])
+      dict_pred_class = crunchbase_ds.person_dict_pred_class
       ground_truth_dict, dict_pred = generate_crunchbase_targets(SPARQLendpointUrl_dict[kg.split("-")[0]],
                                                                          targets_count=40,offset=20,filter_year=1989,
                                                                          dict_pred=crunchbase_ds.person_dict_pred,
@@ -1982,41 +1990,45 @@ def generate_targets_and_RC(kg="biokg",load_from_disk=False):
                                                                              ground_truth_dict, dict_pred)
     elif kg == "linkedIMDB":
       linkedIMDB_ds = linkedIMDB_GLOW_Bench(SPARQLendpointUrl_dict[kg.split("-")[0]])
+      dict_pred_class = linkedIMDB_ds.film_dict_pred_class
       ground_truth_dict, dict_pred = generate_linkedIMDB_targets(SPARQLendpointUrl_dict[kg.split("-")[0]],
                                                                  targets_count=30,offset=0,filter_year=2006,
                                                                  dict_pred=linkedIMDB_ds.film_dict_pred,
                                                                  class_dict=linkedIMDB_ds.film_dict_pred_class)
       ground_truth_context_dict = generate_linkedIMDB_target_context(SPARQLendpointUrl_dict[kg.split("-")[0]],
                                                                      ground_truth_dict, dict_pred)
-      save_targets_and_RC(kg, ground_truth_dict, dict_pred, ground_truth_context_dict)
+      save_targets_and_RC(kg, ground_truth_dict, dict_pred,dict_pred_class, ground_truth_context_dict)
     elif kg == "arxiv2023":
       AskGNN_ds = AskGNN_Glow_Bench(SPARQLendpointUrl_dict[kg.split("-")[0]])
+      dict_pred_class = AskGNN_ds.arxiv2023_dict_pred_class
       ground_truth_dict, dict_pred = generate_arxiv2023_targets(SPARQLendpointUrl_dict[kg.split("-")[0]],
                                                                  targets_count=50,offset=0,filter_year=2006,
                                                                  dict_pred=AskGNN_ds.arxiv2023_dict_pred,
                                                                  class_dict=AskGNN_ds.arxiv2023_dict_pred_class)
       ground_truth_context_dict = generate_arxiv2023_target_context(SPARQLendpointUrl_dict[kg.split("-")[0]],
                                                                      ground_truth_dict, dict_pred)
-      save_targets_and_RC(kg, ground_truth_dict, dict_pred, ground_truth_context_dict)
+      save_targets_and_RC(kg, ground_truth_dict, dict_pred,dict_pred_class, ground_truth_context_dict)
     elif kg == "ogbnArxiv":
       AskGNN_ds = AskGNN_Glow_Bench(SPARQLendpointUrl_dict[kg.split("-")[0]])
+      dict_pred_class = AskGNN_ds.ogbnrxiv_dict_pred_class
       ground_truth_dict, dict_pred = generate_ogbnArxiv_targets(SPARQLendpointUrl_dict[kg.split("-")[0]],
                                                                  targets_count=50,offset=0,filter_year=2007,
                                                                  dict_pred=AskGNN_ds.ogbnrxiv_dict_pred,
                                                                  class_dict=AskGNN_ds.ogbnrxiv_dict_pred_class)
       ground_truth_context_dict = generate_ogbnArxiv_target_context(SPARQLendpointUrl_dict[kg.split("-")[0]],
                                                                      ground_truth_dict, dict_pred)
-      save_targets_and_RC(kg, ground_truth_dict, dict_pred, ground_truth_context_dict)
+      save_targets_and_RC(kg, ground_truth_dict, dict_pred,dict_pred_class, ground_truth_context_dict)
     elif kg == "ogbnProduct":
         AskGNN_ds = AskGNN_Glow_Bench(SPARQLendpointUrl_dict[kg.split("-")[0]])
+        dict_pred_class = AskGNN_ds.ogbnrxiv_dict_pred_class
         ground_truth_dict, dict_pred = generate_ogbnArxiv_targets(SPARQLendpointUrl_dict[kg.split("-")[0]],
                                                                   targets_count=50, offset=0, filter_year=2007,
                                                                   dict_pred=AskGNN_ds.ogbnrxiv_dict_pred,
                                                                   class_dict=AskGNN_ds.ogbnrxiv_dict_pred_class)
         ground_truth_context_dict = generate_ogbnArxiv_target_context(SPARQLendpointUrl_dict[kg.split("-")[0]],
                                                                       ground_truth_dict, dict_pred)
-        save_targets_and_RC(kg, ground_truth_dict, dict_pred, ground_truth_context_dict)
+        save_targets_and_RC(kg, ground_truth_dict, dict_pred,dict_pred_class, ground_truth_context_dict)
 
-  return ground_truth_dict,dict_pred,ground_truth_context_dict
+  return ground_truth_dict,dict_pred_class,ground_truth_context_dict
 
 
