@@ -12,8 +12,10 @@ def dopost(url, json_body):
 def query_ollama_dopost(model, prompt,system_prompt=None):
   # url = "http://192.168.41.218:11434/api/generate"
   # url = "http://206.12.96.43:11434/api/generate"
-  dict_ollama_api={"gpu":"http://206.12.96.43:11434/api/generate"}
-  url = dict_ollama_api["gpu"]
+  dict_ollama_api={"gpu8":"http://206.12.96.43:11434/api/generate",
+                   "gpu16": "http://206.12.92.147:11434/api/generate"}
+
+  url = dict_ollama_api["gpu16"]
   headers = {"Content-Type": "application/json"}
   if system_prompt:
     prompt = f"<|system|>\n{system_prompt}\n<|user|>\n{prompt}"
@@ -32,8 +34,9 @@ def query_ollama_client(model, prompt,system_prompt=None):
     from ollama import Client
     # url = "http://192.168.41.218:11434"
     # url = "http://206.12.96.43:11434"
-    dict_ollama_api = {"gpu": "http://206.12.96.43:11434"}
-    url = dict_ollama_api["gpu"]
+    dict_ollama_api = {"gpu8": "http://206.12.96.43:11434",
+                       "gpu16": "http://206.12.92.147:11434"}
+    url = dict_ollama_api["gpu16"]
     headers = {"Content-Type": "application/json"}
     client = Client(
       host=url,
@@ -49,7 +52,7 @@ def query_ollama_client(model, prompt,system_prompt=None):
         'content': prompt,
       },
     ]
-    print("messages=",messages)
+    print("\nmessages=",messages)
     try:
         response = client.chat(model=model, messages=messages)
         return json.loads(response.model_dump_json())
@@ -75,7 +78,7 @@ def chat(model="o1-mini",prompt_in="",key="",system_prompt=None):
       ]
   )
     return response.choices[0].message.content,response.usage,response
-  elif model in ["deepseek-r1","qwen2.5:7b","qwen2.5:1.5b","qwen2.5:3b","llama3.2:3b","qwen:7b","qwen3:8b","phi4-mini","granite3.3"] :
+  elif model in ["deepseek-r1","qwen2.5:7b","qwen2.5:1.5b","qwen2.5:3b","llama3.2:3b","qwen:7b","qwen3:8b","phi4-mini","granite3.3","hf.co/unsloth/Qwen3-14B-GGUF:Q4_K_M","hf.co/unsloth/Qwen3-32B-GGUF:Q4_K_M"] :
     # response = query_ollama_dopost(model, prompt_in,system_prompt)
     response = query_ollama_client(model, prompt_in, system_prompt)
     usage_keys=['total_duration','load_duration','prompt_eval_count','prompt_eval_duration','eval_count','eval_duration']
@@ -130,3 +133,5 @@ def chat(model="o1-mini",prompt_in="",key="",system_prompt=None):
       model = genai.GenerativeModel(model)
       response = model.generate_content(prompt_in)
       return response.text,response.usage_metadata,response
+  else:
+      return None,None,None

@@ -6,7 +6,7 @@ from glow_parser import args
 import time
 import pandas as pd
 import pickle
-
+from tqdm import tqdm
 # model_name="qwen3:8b"
 model_name=args.llm_model
 
@@ -24,7 +24,7 @@ def Answer_LLM_WOC_QPerPrompt(ds_name,ground_truth_dict,class_dict):
     Answers_lst=[]
     Answers_time_lst=[]
     Answers_usage_list=[]
-    for idx , vt in enumerate(v["target_txt"]):
+    for idx , vt in enumerate(tqdm(v["target_txt"])):
       print(f"Q_idx:{idx}/{len(v['target_txt'])}")
       question_messsage=f"""predict the {kg_metadata[kg][0]} {col_title} for the following {target_type} from the {kg_metadata[kg][1]}.
                             {"" if possible_predictions_str is None else "Help: The possible list of "+col_title+"s are ["+possible_predictions_str+"]"}
@@ -41,6 +41,7 @@ def Answer_LLM_WOC_QPerPrompt(ds_name,ground_truth_dict,class_dict):
       elapsed_time =time.time()-start_time
       Answers_time_lst.append(elapsed_time)
       Answers_usage_list.append(usage)
+      # tqdm.update(1)
 
     predictd_WOC_time_dict[k]=sum(Answers_time_lst)
     print(f"response for {k}={response}")
@@ -135,7 +136,7 @@ def Answer_LLM_WC_QPerPrompt(ds_name,ground_truth_dict,ground_truth_context_dict
     answers_lst=[]
     usage_lst=[]
     times_lst=[]
-    for idx,vt in enumerate(target_lst):
+    for idx,vt in enumerate(tqdm(target_lst)):
       print(f"Q_idx:{idx}/{len(target_lst)}")
       question_messsage=f"""predict the {kg_metadata[kg][0]} {col_title} for the following {target_type} from Linked the {kg_metadata[kg][1]}.
 use the given information context per {target_type} to refine your prediction.
@@ -153,6 +154,7 @@ Answer:"""
       print(f"{response}")
       elapsed_time = time.time()-start_time
       times_lst.append(elapsed_time)
+      # tqdm.update(1)
 
     predictd_WC_time_dict[k]=sum(times_lst)
     try:
@@ -230,18 +232,19 @@ def get_runs_mean_and_std(runs_lst, Accuracy=True):
     return runs_acc_res_mean, runs_acc_res_std, join_by_k
 
 def save_pipeline_results(predictd_results_dic,predictd_time_dict,merged_results_dic,run_lst_dic,model_name,KG="BioKG"):
-    with open(f'GLOW-QA_dataset/{KG}_GNN_Materlized_answers_dict.pickle', 'wb') as file:
-        pickle.dump(GNN_Materlized_answers_dict, file)
-    with open(f'GLOW-QA_dataset/{KG}_{model_name}_predictd_results_dic.pickle', 'wb') as file:
+
+    with open(f'../GLOW-QA_dataset/{KG}_GNNOnly_Materlized_answers_dict.pickle', 'wb') as file:
+        pickle.dump(GNNOnly_Materlized_answers_dict, file)
+    with open(f'../GLOW-QA_dataset/{KG}_{model_name}_predictd_results_dic.pickle', 'wb') as file:
         pickle.dump(predictd_results_dic, file)
 
-    with open(f'GLOW-QA_dataset/{KG}_{model_name}_predictd_time_dict.pickle', 'wb') as file:
+    with open(f'../GLOW-QA_dataset/{KG}_{model_name}_predictd_time_dict.pickle', 'wb') as file:
         pickle.dump(predictd_time_dict, file)
 
-    with open(f'GLOW-QA_dataset/{KG}_{model_name}_merged_results_dic.pickle', 'wb') as file:
+    with open(f'../GLOW-QA_dataset/{KG}_{model_name}_merged_results_dic.pickle', 'wb') as file:
         pickle.dump(merged_results_dic, file)
 
-    with open(f'GLOW-QA_dataset/{KG}_{model_name}_run_lst_dic.pickle', 'wb') as file:
+    with open(f'../GLOW-QA_dataset/{KG}_{model_name}_run_lst_dic.pickle', 'wb') as file:
         pickle.dump(run_lst_dic, file)
 
 def calc_tokens():
@@ -281,7 +284,7 @@ if __name__ == '__main__':
             # ['L', 'GN', 'G', 'N', 'LLM', 'All']
             print("###########Start LLM Only Prompts########")
             predictd_LLMOnly_dict,predictd_LLMOnly_time_dict=Answer_LLM_WOC_QPerPrompt(args.dataset_name, ground_truth_dict,None)
-            LLMOnly_acc_res, merged_LLMOnly_df = eval_predictions_Exact(args.dataset_name, ground_truth_dict,predictd_LLMOnly_dict)
+            LLMOnly_acc_res, merged_LLMOnly_df = eval_predictions_Exact(ground_truth_dict,predictd_LLMOnly_dict)
             LLMOnly_runs_lst.append([LLMOnly_acc_res, predictd_LLMOnly_time_dict])
         if args.glow_v in ['L', 'All']:
             print("###########Start GLOW-L Prompts########")
@@ -293,7 +296,7 @@ if __name__ == '__main__':
             predictd_WC_dict,predictd_WC_time_dict=Answer_LLM_WC_QPerPrompt(args.dataset_name,ground_truth_dict,ground_truth_context_dict,pred_class_dict)
             WC_acc_res,merged_WC_df=eval_predictions_Exact(ground_truth_dict,predictd_WC_dict)
             WC_runs_lst.append([WC_acc_res,predictd_WC_time_dict])
-        if args.glow_v in ['N', 'All']:
+        if args.glow_v in ['N','GN', 'All']:
             print("###########Start GNN Only ########")
             GNNOnly_acc_res_dict,predictd_GNN_dict={},{}
             GNNOnly_answers_dict={}
@@ -305,7 +308,7 @@ if __name__ == '__main__':
             for k in ground_truth_dict.keys():
               ground_truth_dict[k]['GNN_pred']=ground_truth_dict[k]['target'].apply(lambda x:pred_class_dict[k]['classes'][GNNOnly_answers_dict[k][x]] if GNNOnly_answers_dict[k][x] in pred_class_dict[k]['classes'].keys() else None)
               GNNOnly_Materlized_answers_dict[k]=list(ground_truth_dict[k]['GNN_pred'].values)
-
+        if args.glow_v in ['N', 'All']:
             print("###########Start GLOW-N Prompts########")
             predictd_GNN_dict, predictd_GNN_time_dict = Answer_LLM_WC_QPerPrompt(args.dataset_name,
                                                                                        ground_truth_dict,
@@ -317,7 +320,7 @@ if __name__ == '__main__':
 
         if args.glow_v in ['GN', 'All']:
             print("###########Start GLOW-GN Prompts########")
-            predictd_LLMGNN_dict,predictd_LLMGNN_time_dict=Answer_LLM_WC_QPerPrompt(args.dataset_name,ground_truth_dict,ground_truth_context_dict,pred_class_dict,GNN_Materlized_answers_dict)
+            predictd_LLMGNN_dict,predictd_LLMGNN_time_dict=Answer_LLM_WC_QPerPrompt(args.dataset_name,ground_truth_dict,ground_truth_context_dict,pred_class_dict,GNNOnly_Materlized_answers_dict)
             LLMGNN_acc_res,LLMGNN_merged_df=eval_predictions_Exact(ground_truth_dict,predictd_LLMGNN_dict)
             GNNGRAG_run_lst.append([LLMGNN_acc_res,predictd_LLMGNN_time_dict])
 
@@ -333,11 +336,16 @@ if __name__ == '__main__':
                           "GNN_merged_df": GNN_merged_df,"LLMGNN_merged_df": LLMGNN_merged_df}
     run_lst_dic = {"LLMOnly_runs_lst": LLMOnly_runs_lst, "WOC_runs_lst": WOC_runs_lst, "WC_runs_lst": WC_runs_lst,
                    "GNNOnly_runs_lst": GNNOnly_run_lst, "GNN_run_lst": GNN_run_lst,"GNNGRAG_run_lst": GNNGRAG_run_lst}
-    save_pipeline_results(predictd_results_dic,predictd_time_dict,merged_results_dic,run_lst_dic,args.model_name,KG=args.dataset_name)
+    save_pipeline_results(predictd_results_dic,predictd_time_dict,merged_results_dic,run_lst_dic,args.llm_model.split("/")[-1],KG=args.dataset_name)
     ################ Print Results ################
     final_results_dict={}
     for k in LLMOnly_acc_res:
         final_results_dict[k]=[]
         for res_dic in [LLMOnly_acc_res,WOC_acc_res,WC_acc_res,GNNOnly_acc_res_dict,GNN_acc_res,LLMGNN_acc_res]:
             final_results_dict[k].append(res_dic[k][0])
-    print(pd.DataFrame(final_results_dict).transpose())
+    res_df=pd.DataFrame(final_results_dict).transpose()
+    res_df.columns=['LLMOnly','Glow-L','Glow-G','GNN','Glow-N','Glow-GN']
+    res_df["dataset_name"] = res_df.index
+    res_df=res_df[['dataset_name','LLMOnly','Glow-L','Glow-G','GNN','Glow-N','Glow-GN']]
+    res_df.to_csv(f'../GLOW-QA_dataset/{args.dataset_name}_{args.llm_model.split("/")[-1]}_result.csv',index=False)
+    print(res_df)
