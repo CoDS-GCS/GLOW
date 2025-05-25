@@ -247,8 +247,8 @@ def save_pipeline_results(predictd_results_dic,predictd_time_dict,merged_results
     with open(f'../GLOW-QA_dataset/{KG}_{model_name}_run_lst_dic.pickle', 'wb') as file:
         pickle.dump(run_lst_dic, file)
 
-def calc_tokens():
-    for pipline in [predictd_LLMOnly_dict, predictd_WOC_dict, predictd_WC_dict, predictd_LLMGNN_dict]:
+def calc_tokens(piplines):
+    for pipline in piplines:
         total_tokens = []
         for k in pipline:
             print(f'k={k}')
@@ -256,9 +256,7 @@ def calc_tokens():
             total_tokens.append(sum(tokens_lst) / len(tokens_lst))
         print(f'avg_tokens={sum(total_tokens) / len(total_tokens)}')
 
-def calc_answer_time():
-    pred_lst = [predictd_LLMOnly_dict, predictd_WOC_dict, predictd_WC_dict, predictd_LLMGNN_dict]
-    time_lst = [predictd_LLMOnly_time_dict, predictd_WOC_time_dict, predictd_WC_time_dict, predictd_LLMGNN_time_dict]
+def calc_answer_time(pred_lst,time_lst):
     for idx, time_pipline in enumerate(time_lst):
         time_lst = []
         for k in time_pipline:
@@ -356,4 +354,8 @@ if __name__ == '__main__':
         res_df["dataset_name"] = res_df.index
         res_df=res_df[['dataset_name','LLMOnly','Glow-L','Glow-G','GNN','Glow-N','Glow-GN']]
         res_df.to_csv(f'../GLOW-QA_dataset/{ds}_{args.llm_model.split("/")[-1]}_result.csv',index=False)
-        print(res_df)
+        print("Accuracy:\n",res_df)
+        pred_lst = [predictd_LLMOnly_dict, predictd_WOC_dict, predictd_WC_dict,predictd_GNN_dict, predictd_LLMGNN_dict]
+        time_lst = [predictd_LLMOnly_time_dict, predictd_WOC_time_dict, predictd_WC_time_dict,predictd_GNN_time_dict,predictd_LLMGNN_time_dict]
+        print("Time:\n",calc_answer_time(pred_lst,time_lst))
+        print("Tokens Count:\n", calc_tokens(piplines=[predictd_LLMOnly_dict, predictd_WOC_dict, predictd_WC_dict,predictd_GNN_dict, predictd_LLMGNN_dict]))
