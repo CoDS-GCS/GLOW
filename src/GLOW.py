@@ -273,79 +273,87 @@ if __name__ == '__main__':
     merged_LLMOnly_df,merged_WOC_df, merged_WC_df,GNN_merged_df,LLMGNN_merged_df={},{},{},{},{}
     LLMOnly_runs_lst, WOC_runs_lst, WC_runs_lst, GNNOnly_run_lst,GNN_run_lst, GNNGRAG_run_lst={},{},{},{},{},{}
     #######################
-    ground_truth_dict, pred_class_dict, ground_truth_context_dict=generate_targets_and_RC(args.dataset_name,load_from_disk=args.generate_GlowBench==False)
-    WOC_runs_lst,WC_runs_lst,LLMOnly_runs_lst=[],[],[]
-    GNNOnly_run_lst = []
-    GNN_run_lst = []
-    GNNGRAG_run_lst = []
     print(f"Args={args}")
-    for i in range(args.runs):
-        if args.glow_v in ['LLMOnly','All']:
-            # ['L', 'GN', 'G', 'N', 'LLM', 'All']
-            print("###########Start LLM Only Prompts########")
-            predictd_LLMOnly_dict,predictd_LLMOnly_time_dict=Answer_LLM_WOC_QPerPrompt(args.dataset_name, ground_truth_dict,None)
-            LLMOnly_acc_res, merged_LLMOnly_df = eval_predictions_Exact(ground_truth_dict,predictd_LLMOnly_dict)
-            LLMOnly_runs_lst.append([LLMOnly_acc_res, predictd_LLMOnly_time_dict])
-        if args.glow_v in ['L', 'All']:
-            print("###########Start GLOW-L Prompts########")
-            predictd_WOC_dict,predictd_WOC_time_dict=Answer_LLM_WOC_QPerPrompt(args.dataset_name,ground_truth_dict,pred_class_dict)
-            WOC_acc_res, merged_WOC_df = eval_predictions_Exact(ground_truth_dict, predictd_WOC_dict)
-            WOC_runs_lst.append([WOC_acc_res, predictd_WOC_time_dict])
-        if args.glow_v in ['G', 'All']:
-            print("###########Start GLOW-G Prompts########")
-            predictd_WC_dict,predictd_WC_time_dict=Answer_LLM_WC_QPerPrompt(args.dataset_name,ground_truth_dict,ground_truth_context_dict,pred_class_dict)
-            WC_acc_res,merged_WC_df=eval_predictions_Exact(ground_truth_dict,predictd_WC_dict)
-            WC_runs_lst.append([WC_acc_res,predictd_WC_time_dict])
-        if args.glow_v in ['N','GN', 'All']:
-            print("###########Start GNN Only ########")
-            GNNOnly_acc_res_dict,predictd_GNN_dict={},{}
-            GNNOnly_answers_dict={}
-            GNNOnly_times_dict,predictd_GNN_time_dict={},{}
-            for k,v in ground_truth_dict.items():
-                 GNNOnly_acc_res_dict[k], GNNOnly_answers_dict[k],GNNOnly_times_dict[k]=calc_GNN_predictions_acc(ground_truth_dict,pred_class_dict,k=k)
-            GNNOnly_run_lst.append([GNNOnly_acc_res_dict,GNNOnly_times_dict,GNNOnly_answers_dict])
-            GNNOnly_Materlized_answers_dict={}
-            for k in ground_truth_dict.keys():
-              ground_truth_dict[k]['GNN_pred']=ground_truth_dict[k]['target'].apply(lambda x:pred_class_dict[k]['classes'][GNNOnly_answers_dict[k][x]] if GNNOnly_answers_dict[k][x] in pred_class_dict[k]['classes'].keys() else None)
-              GNNOnly_Materlized_answers_dict[k]=list(ground_truth_dict[k]['GNN_pred'].values)
-        if args.glow_v in ['N', 'All']:
-            print("###########Start GLOW-N Prompts########")
-            predictd_GNN_dict, predictd_GNN_time_dict = Answer_LLM_WC_QPerPrompt(args.dataset_name,
-                                                                                       ground_truth_dict,
-                                                                                       None,
-                                                                                       pred_class_dict,
-                                                                                       GNNOnly_Materlized_answers_dict)
-            GNN_acc_res, GNN_merged_df = eval_predictions_Exact(ground_truth_dict, predictd_GNN_dict)
-            GNNGRAG_run_lst.append([GNN_acc_res, predictd_GNN_time_dict])
+    Glow_datasets= ['biokg', 'linkedIMDB', 'yago4-person', 'yago4-creativwork', 'crunchbase', 'arxiv2023','ogbnArxiv', 'ogbnProduct']
+    if args.dataset_name=='All':
+        datasets = Glow_datasets
+    else:
+        datasets = [args.dataset_name]
+    for ds in datasets:
+        print(f"############## Glow Dataset:{ds} ########################")
+        ground_truth_dict, pred_class_dict, ground_truth_context_dict = generate_targets_and_RC(ds,load_from_disk=args.generate_GlowBench == False)
+        WOC_runs_lst, WC_runs_lst, LLMOnly_runs_lst = [], [], []
+        GNNOnly_run_lst = []
+        GNN_run_lst = []
+        GNNGRAG_run_lst = []
+        for i in range(args.runs):
+            print("####RUN:{i}#######")
+            if args.glow_v in ['LLMOnly','All']:
+                # ['L', 'GN', 'G', 'N', 'LLM', 'All']
+                print("###########Start LLM Only Prompts########")
+                predictd_LLMOnly_dict,predictd_LLMOnly_time_dict=Answer_LLM_WOC_QPerPrompt(ds, ground_truth_dict,None)
+                LLMOnly_acc_res, merged_LLMOnly_df = eval_predictions_Exact(ground_truth_dict,predictd_LLMOnly_dict)
+                LLMOnly_runs_lst.append([LLMOnly_acc_res, predictd_LLMOnly_time_dict])
+            if args.glow_v in ['L', 'All']:
+                print("###########Start GLOW-L Prompts########")
+                predictd_WOC_dict,predictd_WOC_time_dict=Answer_LLM_WOC_QPerPrompt(ds,ground_truth_dict,pred_class_dict)
+                WOC_acc_res, merged_WOC_df = eval_predictions_Exact(ground_truth_dict, predictd_WOC_dict)
+                WOC_runs_lst.append([WOC_acc_res, predictd_WOC_time_dict])
+            if args.glow_v in ['G', 'All']:
+                print("###########Start GLOW-G Prompts########")
+                predictd_WC_dict,predictd_WC_time_dict=Answer_LLM_WC_QPerPrompt(ds,ground_truth_dict,ground_truth_context_dict,pred_class_dict)
+                WC_acc_res,merged_WC_df=eval_predictions_Exact(ground_truth_dict,predictd_WC_dict)
+                WC_runs_lst.append([WC_acc_res,predictd_WC_time_dict])
+            if args.glow_v in ['N','GN', 'All']:
+                print("###########Start GNN Only ########")
+                GNNOnly_acc_res_dict,predictd_GNN_dict={},{}
+                GNNOnly_answers_dict={}
+                GNNOnly_times_dict,predictd_GNN_time_dict={},{}
+                for k,v in ground_truth_dict.items():
+                     GNNOnly_acc_res_dict[k], GNNOnly_answers_dict[k],GNNOnly_times_dict[k]=calc_GNN_predictions_acc(ground_truth_dict,pred_class_dict,k=k)
+                GNNOnly_run_lst.append([GNNOnly_acc_res_dict,GNNOnly_times_dict,GNNOnly_answers_dict])
+                GNNOnly_Materlized_answers_dict={}
+                for k in ground_truth_dict.keys():
+                  ground_truth_dict[k]['GNN_pred']=ground_truth_dict[k]['target'].apply(lambda x:pred_class_dict[k]['classes'][GNNOnly_answers_dict[k][x]] if GNNOnly_answers_dict[k][x] in pred_class_dict[k]['classes'].keys() else None)
+                  GNNOnly_Materlized_answers_dict[k]=list(ground_truth_dict[k]['GNN_pred'].values)
+            if args.glow_v in ['N', 'All']:
+                print("###########Start GLOW-N Prompts########")
+                predictd_GNN_dict, predictd_GNN_time_dict = Answer_LLM_WC_QPerPrompt(ds,
+                                                                                           ground_truth_dict,
+                                                                                           None,
+                                                                                           pred_class_dict,
+                                                                                           GNNOnly_Materlized_answers_dict)
+                GNN_acc_res, GNN_merged_df = eval_predictions_Exact(ground_truth_dict, predictd_GNN_dict)
+                GNNGRAG_run_lst.append([GNN_acc_res, predictd_GNN_time_dict])
 
-        if args.glow_v in ['GN', 'All']:
-            print("###########Start GLOW-GN Prompts########")
-            predictd_LLMGNN_dict,predictd_LLMGNN_time_dict=Answer_LLM_WC_QPerPrompt(args.dataset_name,ground_truth_dict,ground_truth_context_dict,pred_class_dict,GNNOnly_Materlized_answers_dict)
-            LLMGNN_acc_res,LLMGNN_merged_df=eval_predictions_Exact(ground_truth_dict,predictd_LLMGNN_dict)
-            GNNGRAG_run_lst.append([LLMGNN_acc_res,predictd_LLMGNN_time_dict])
+            if args.glow_v in ['GN', 'All']:
+                print("###########Start GLOW-GN Prompts########")
+                predictd_LLMGNN_dict,predictd_LLMGNN_time_dict=Answer_LLM_WC_QPerPrompt(ds,ground_truth_dict,ground_truth_context_dict,pred_class_dict,GNNOnly_Materlized_answers_dict)
+                LLMGNN_acc_res,LLMGNN_merged_df=eval_predictions_Exact(ground_truth_dict,predictd_LLMGNN_dict)
+                GNNGRAG_run_lst.append([LLMGNN_acc_res,predictd_LLMGNN_time_dict])
 
-    ############### Save The Pipeline Answers ################
-    predictd_results_dic = {"predictd_LLMOnly_dict": predictd_LLMOnly_dict, "predictd_LLMOnly_dict": predictd_WOC_dict,
-                            "predictd_WC_dict": predictd_WC_dict, "predictd_GNN_dict": predictd_GNN_dict,"predictd_LLMGNN_dict": predictd_LLMGNN_dict}
-    predictd_time_dict = {"predictd_LLMOnly_time_dict": predictd_LLMOnly_time_dict,
-                          "predictd_WOC_time_dict": predictd_WOC_time_dict,
-                          "predictd_WC_time_dict": predictd_WC_time_dict,
-                          "predictd_GNN_time_dict": predictd_GNN_time_dict,
-                          "predictd_LLMGNN_time_dict": predictd_LLMGNN_time_dict}
-    merged_results_dic = {"LLMOnly_merged_df": merged_LLMOnly_df, "merged_WOC_df": merged_WOC_df, "merged_WC_df": merged_WC_df,
-                          "GNN_merged_df": GNN_merged_df,"LLMGNN_merged_df": LLMGNN_merged_df}
-    run_lst_dic = {"LLMOnly_runs_lst": LLMOnly_runs_lst, "WOC_runs_lst": WOC_runs_lst, "WC_runs_lst": WC_runs_lst,
-                   "GNNOnly_runs_lst": GNNOnly_run_lst, "GNN_run_lst": GNN_run_lst,"GNNGRAG_run_lst": GNNGRAG_run_lst}
-    save_pipeline_results(predictd_results_dic,predictd_time_dict,merged_results_dic,run_lst_dic,args.llm_model.split("/")[-1],KG=args.dataset_name)
-    ################ Print Results ################
-    final_results_dict={}
-    for k in LLMOnly_acc_res:
-        final_results_dict[k]=[]
-        for res_dic in [LLMOnly_acc_res,WOC_acc_res,WC_acc_res,GNNOnly_acc_res_dict,GNN_acc_res,LLMGNN_acc_res]:
-            final_results_dict[k].append(res_dic[k][0])
-    res_df=pd.DataFrame(final_results_dict).transpose()
-    res_df.columns=['LLMOnly','Glow-L','Glow-G','GNN','Glow-N','Glow-GN']
-    res_df["dataset_name"] = res_df.index
-    res_df=res_df[['dataset_name','LLMOnly','Glow-L','Glow-G','GNN','Glow-N','Glow-GN']]
-    res_df.to_csv(f'../GLOW-QA_dataset/{args.dataset_name}_{args.llm_model.split("/")[-1]}_result.csv',index=False)
-    print(res_df)
+        ############### Save The Pipeline Answers ################
+        predictd_results_dic = {"predictd_LLMOnly_dict": predictd_LLMOnly_dict, "predictd_LLMOnly_dict": predictd_WOC_dict,
+                                "predictd_WC_dict": predictd_WC_dict, "predictd_GNN_dict": predictd_GNN_dict,"predictd_LLMGNN_dict": predictd_LLMGNN_dict}
+        predictd_time_dict = {"predictd_LLMOnly_time_dict": predictd_LLMOnly_time_dict,
+                              "predictd_WOC_time_dict": predictd_WOC_time_dict,
+                              "predictd_WC_time_dict": predictd_WC_time_dict,
+                              "predictd_GNN_time_dict": predictd_GNN_time_dict,
+                              "predictd_LLMGNN_time_dict": predictd_LLMGNN_time_dict}
+        merged_results_dic = {"LLMOnly_merged_df": merged_LLMOnly_df, "merged_WOC_df": merged_WOC_df, "merged_WC_df": merged_WC_df,
+                              "GNN_merged_df": GNN_merged_df,"LLMGNN_merged_df": LLMGNN_merged_df}
+        run_lst_dic = {"LLMOnly_runs_lst": LLMOnly_runs_lst, "WOC_runs_lst": WOC_runs_lst, "WC_runs_lst": WC_runs_lst,
+                       "GNNOnly_runs_lst": GNNOnly_run_lst, "GNN_run_lst": GNN_run_lst,"GNNGRAG_run_lst": GNNGRAG_run_lst}
+        save_pipeline_results(predictd_results_dic,predictd_time_dict,merged_results_dic,run_lst_dic,args.llm_model.split("/")[-1],KG=ds)
+        ################ Print Results ################
+        final_results_dict={}
+        for k in LLMOnly_acc_res:
+            final_results_dict[k]=[]
+            for res_dic in [LLMOnly_acc_res,WOC_acc_res,WC_acc_res,GNNOnly_acc_res_dict,GNN_acc_res,LLMGNN_acc_res]:
+                final_results_dict[k].append(res_dic[k][0])
+        res_df=pd.DataFrame(final_results_dict).transpose()
+        res_df.columns=['LLMOnly','Glow-L','Glow-G','GNN','Glow-N','Glow-GN']
+        res_df["dataset_name"] = res_df.index
+        res_df=res_df[['dataset_name','LLMOnly','Glow-L','Glow-G','GNN','Glow-N','Glow-GN']]
+        res_df.to_csv(f'../GLOW-QA_dataset/{ds}_{args.llm_model.split("/")[-1]}_result.csv',index=False)
+        print(res_df)
