@@ -355,7 +355,10 @@ if __name__ == '__main__':
         res_df=res_df[['dataset_name','LLMOnly','Glow-L','Glow-G','GNN','Glow-N','Glow-GN']]
         res_df.to_csv(f'../GLOW-QA_dataset/{ds}_{args.llm_model.split("/")[-1]}_result.csv',index=False)
         print("Accuracy:\n",res_df)
-        pred_lst = [predictd_LLMOnly_dict, predictd_WOC_dict, predictd_WC_dict,predictd_GNN_dict, predictd_LLMGNN_dict]
-        time_lst = [predictd_LLMOnly_time_dict, predictd_WOC_time_dict, predictd_WC_time_dict,predictd_GNN_time_dict,predictd_LLMGNN_time_dict]
-        print("Time:\n",calc_answer_time(pred_lst,time_lst))
-        print("Tokens Count:\n", calc_tokens(piplines=[predictd_LLMOnly_dict, predictd_WOC_dict, predictd_WC_dict,predictd_GNN_dict, predictd_LLMGNN_dict]))
+        try:
+            pred_lst = [predictd_LLMOnly_dict, predictd_WOC_dict, predictd_WC_dict,predictd_GNN_dict, predictd_LLMGNN_dict]
+            time_lst = [predictd_LLMOnly_time_dict, predictd_WOC_time_dict, predictd_WC_time_dict,predictd_GNN_time_dict,predictd_LLMGNN_time_dict]
+            print("Time:\n",calc_answer_time(pred_lst,time_lst))
+            print("Tokens Count:\n", calc_tokens(piplines=[predictd_LLMOnly_dict, predictd_WOC_dict, predictd_WC_dict,predictd_GNN_dict, predictd_LLMGNN_dict]))
+        except :
+            continue
