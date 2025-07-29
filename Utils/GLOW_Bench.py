@@ -1988,6 +1988,7 @@ def generate_targets_and_RC(kg="biokg",load_from_disk=False):
                                                                          class_dict=crunchbase_ds.person_dict_pred_class)
       ground_truth_context_dict = generate_crunchbase_target_context(SPARQLendpointUrl_dict[kg.split("-")[0]],
                                                                              ground_truth_dict, dict_pred)
+      save_targets_and_RC(kg, ground_truth_dict, dict_pred, dict_pred_class, ground_truth_context_dict)
     elif kg == "linkedIMDB":
       linkedIMDB_ds = linkedIMDB_GLOW_Bench(SPARQLendpointUrl_dict[kg.split("-")[0]])
       dict_pred_class = linkedIMDB_ds.film_dict_pred_class

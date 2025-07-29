@@ -3,7 +3,7 @@ sys.path.insert(0,'../')
 from Utils.GLOW_Bench import generate_targets_and_RC, kg_metadata
 from Utils.evaluate import eval_predictions_Exact, llm_as_judge
 from Utils.GNN_KGMeta import calc_acc_gnn, calc_GNN_predictions_acc
-from Utils.ollamaAPI import chat
+from Utils.ollamaAPI import chat,query_ollama_client
 from glow_parser import args
 import time
 import pandas as pd
@@ -40,7 +40,7 @@ def Answer_LLM_WOC_QPerPrompt(ds_name, ground_truth_dict, class_dict):
             # response =chat_engine.chat(question_messsage)
             start_time = time.time()
             response, usage, full_response = chat(model=model_name, prompt_in=question_messsage,
-                                                  system_prompt=system_prompt)
+                                                  system_prompt=system_prompt,use_ollama=False)
             print(f"Answer:{response}")
             Answers_lst.append([vt, response.split("Answer:")[-1].strip()])
             elapsed_time = time.time() - start_time
@@ -84,7 +84,7 @@ def Answer_LLM_WOC(ds_name, ground_truth_dict, class_dict):
                           {listOfTargetsStr}"""
         # print("question_messsage=",question_messsage)
         response, usage, full_response = chat(model=model_name, prompt_in=question_messsage,
-                                              system_prompt=system_prompt)
+                                              system_prompt=system_prompt,use_ollama=False)
         elapsed_time = time.time() - start_time
         predictd_WOC_time_dict[k] = elapsed_time
         print(f"response for {k}={response}")
@@ -126,6 +126,69 @@ def eval_LLM_WOC(ground_truth_dict, predictd_WOC_dict):
             merged_df_res[k] = None
     return WOC_acc_res, merged_df_res
 
+def Answer_GCR_QPerPrompt(ds_name, ground_truth_dict, ground_truth_context_dict, class_dict):
+    predictd_WC_dict = {}
+    predictd_WC_time_dict = {}
+    kg = ds_name.split("-")[0]
+    system_prompt = "You are an expert open world question answer (QA) system. your are given a list of triple path exist in the knoweldge graph to support your answers."
+    for idx, (k, v) in enumerate(ground_truth_dict.items()):
+        target_type = k.split('-')[0]
+        col_title = k.split('-')[1]
+        target_lst = v["target"].unique().tolist()
+        possible_predictions_str = None
+        if class_dict[k]['classes']:
+            # possible_predictions_str = "\n, ".join(list(class_dict[k]['classes'].values()))
+            possible_predictions_str = str(list(class_dict[k]['classes'].values()))
+
+        answers_lst = []
+        usage_lst = []
+        times_lst = []
+        # for idx, vt in enumerate(tqdm(target_lst[0:10])):
+        for idx, vt in enumerate(tqdm(target_lst)):
+            # print(f"Q_idx:{idx}//{len(target_lst)}")
+            try:
+                assistant_prompt="# Reasoning Path:\n"+ str([f"<PATH> {vt.split("/")[-1]} ->{p} ->{o} </PATH>" for (p,o) in eval(ground_truth_context_dict[k][vt].replace("\n"," ").replace("\r"," ")) ]).replace("'","").replace(", ","\n").replace("[","").replace("]","")
+            except:
+                assistant_prompt = "# Reasoning Path:"
+            question_messsage = f"""Reasoning path is a sequence of triples in the KG that help predicting the missing answer entities. Given a question, please generate use the reasoning paths in the KG to answer the question.
+            # Question:
+            What is the {kg_metadata[kg][0]} {col_title} for the following {target_type} from the {kg_metadata[kg][1]}.
+            # Topic entities:
+            {target_type}-> {vt}
+             {"" if possible_predictions_str is None else "The list of " + col_title + "s answers are\n"+ possible_predictions_str} 
+ Do not return any context or analysis.  
+ Must return only one answer from the given list of answers.
+ Refine your answer.
+ #Answer:"""
+            # print("question_messsage=",quest  ion_messsage)
+            start_time = time.time()
+            response, usage, full_reponse = chat(model=model_name, prompt_in=question_messsage,
+                                                 system_prompt=system_prompt,assistant_prompt=assistant_prompt,use_ollama=False)
+            answer=""
+            if "**Answer:**" in response:
+                answer=response.split("**Answer:**")[-1].strip()
+            elif "Answer:" in response:
+                answer=response.split("Answer:")[-1].strip()
+            elif "is **" in response:
+                answer=response.split("is **")[-1].split("**")[0].strip()
+            elif "#" in response:
+                answer=response.split("#")[-1].strip()
+            else:
+                answer=response.split("Answer")[-1].strip()
+            answers_lst.append([vt, answer])
+            usage_lst.append(usage)
+            print(f"{answer}")
+            elapsed_time = time.time() - start_time
+            times_lst.append(elapsed_time)
+            # tqdm.update(1)
+
+        predictd_WC_time_dict[k] = sum(times_lst)
+        try:
+            ans_df = pd.DataFrame(answers_lst, columns=["target", col_title])  # remove URLs Patterns
+        except:
+            ans_df = pd.DataFrame([['None', 'None']], columns=["target", col_title])  # remove URLs Patterns
+        predictd_WC_dict[k] = (ans_df, usage_lst)
+    return predictd_WC_dict, predictd_WC_time_dict
 
 def Answer_LLM_WC_QPerPrompt(ds_name, ground_truth_dict, ground_truth_context_dict, class_dict, GNN_Answers_dict=None):
     predictd_WC_dict = {}
@@ -160,7 +223,7 @@ def Answer_LLM_WC_QPerPrompt(ds_name, ground_truth_dict, ground_truth_context_di
             # print("question_messsage=",question_messsage)
             start_time = time.time()
             response, usage, full_reponse = chat(model=model_name, prompt_in=question_messsage,
-                                                 system_prompt=system_prompt)
+                                                 system_prompt=system_prompt,use_ollama=False)
             answers_lst.append([vt, response.split("Answer:")[-1].strip()])
             usage_lst.append(usage)
             print(f"{response}")
@@ -214,7 +277,7 @@ def Answer_LLM_WC(ds_name, ground_truth_dict, ground_truth_context_dict, class_d
                           ---Note: return the {target_type} Name and replace underscore with space.
                           Answer:"""
         # print("question_messsage=",question_messsage)
-        response, usage, full_reponse = chat(model=model_name, prompt_in=question_messsage, system_prompt=system_prompt)
+        response, usage, full_reponse = chat(model=model_name, prompt_in=question_messsage, system_prompt=system_prompt,use_ollama=False)
         elapsed_time = time.time() - start_time
         predictd_WC_time_dict[k] = elapsed_time
         response = response.split("Here is the output:\n")[-1].split("the requested format:\n")[-1].replace("\n\n",
@@ -251,8 +314,8 @@ def get_runs_mean_and_std(runs_lst, Accuracy=True):
 
 def save_pipeline_results(predictd_results_dic, predictd_time_dict, merged_results_dic, run_lst_dic, model_name,
                           KG="BioKG"):
-    with open(f'../GLOW-QA_dataset/{KG}_GNNOnly_Materlized_answers_dict.pickle', 'wb') as file:
-        pickle.dump(GNNOnly_Materlized_answers_dict, file)
+    # with open(f'../GLOW-QA_dataset/{KG}_GNNOnly_Materlized_answers_dict.pickle', 'wb') as file:
+    #     pickle.dump(GNNOnly_Materlized_answers_dict, file)
     with open(f'../GLOW-QA_dataset/{KG}_{model_name}_predictd_results_dic.pickle', 'wb') as file:
         pickle.dump(predictd_results_dic, file)
 
@@ -302,12 +365,17 @@ if __name__ == '__main__':
         datasets = [args.dataset_name]
     for ds in datasets:
         print(f"############## Glow Dataset:{ds} ########################")
+        result_varients=[]
+        result_varient_names=[]
+
         ground_truth_dict, pred_class_dict, ground_truth_context_dict = generate_targets_and_RC(ds,
                                                                                                 load_from_disk=args.generate_GlowBench == False)
-        WOC_runs_lst, WC_runs_lst, LLMOnly_runs_lst = [], [], []
+        WOC_runs_lst, WC_runs_lst,GCR_runs_lst, LLMOnly_runs_lst = [], [], [],[]
         GNNOnly_run_lst = []
         GNN_run_lst = []
         GNNGRAG_run_lst = []
+        GCR_run_lst = []
+
         for i in range(args.runs):
             print(f"####RUN:{i}#######")
             if args.glow_v in ['LLMOnly', 'All']:
@@ -317,12 +385,16 @@ if __name__ == '__main__':
                                                                                               None)
                 LLMOnly_acc_res, merged_LLMOnly_df = eval_predictions_Exact(ground_truth_dict, predictd_LLMOnly_dict)
                 LLMOnly_runs_lst.append([LLMOnly_acc_res, predictd_LLMOnly_time_dict])
+                result_varients.append(LLMOnly_acc_res)
+                result_varient_names.append("LLMOnly")
             if args.glow_v in ['L', 'All']:
                 print("###########Start GLOW-L Prompts########")
                 predictd_WOC_dict, predictd_WOC_time_dict = Answer_LLM_WOC_QPerPrompt(ds, ground_truth_dict,
                                                                                       pred_class_dict)
                 WOC_acc_res, merged_WOC_df = eval_predictions_Exact(ground_truth_dict, predictd_WOC_dict)
                 WOC_runs_lst.append([WOC_acc_res, predictd_WOC_time_dict])
+                result_varients.append(WOC_acc_res)
+                result_varient_names.append("GLOW-L")
             if args.glow_v in ['G', 'All']:
                 print("###########Start GLOW-G Prompts########")
                 predictd_WC_dict, predictd_WC_time_dict = Answer_LLM_WC_QPerPrompt(ds, ground_truth_dict,
@@ -330,6 +402,17 @@ if __name__ == '__main__':
                                                                                    pred_class_dict)
                 WC_acc_res, merged_WC_df = eval_predictions_Exact(ground_truth_dict, predictd_WC_dict)
                 WC_runs_lst.append([WC_acc_res, predictd_WC_time_dict])
+                result_varients.append(WC_acc_res)
+                result_varient_names.append("GLOW-G")
+            if args.glow_v in ['GCR', 'All']:
+                print("###########Start GCR Prompts########")
+                predictd_GCR_dict, predictd_GCR_time_dict = Answer_GCR_QPerPrompt(ds, ground_truth_dict,
+                                                                                   ground_truth_context_dict,
+                                                                                   pred_class_dict)
+                GCR_acc_res, merged_GCR_df = eval_predictions_Exact(ground_truth_dict, predictd_GCR_dict)
+                GCR_runs_lst.append([GCR_acc_res, predictd_GCR_time_dict])
+                result_varients.append(GCR_acc_res)
+                result_varient_names.append("GCR")
             if args.glow_v in ['N', 'GN', 'All']:
                 print("###########Start GNN Only ########")
                 GNNOnly_acc_res_dict, predictd_GNN_dict = {}, {}
@@ -341,11 +424,7 @@ if __name__ == '__main__':
                 GNNOnly_run_lst.append([GNNOnly_acc_res_dict, GNNOnly_times_dict, GNNOnly_answers_dict])
                 GNNOnly_Materlized_answers_dict = {}
                 for k in ground_truth_dict.keys():
-                    ground_truth_dict[k]['GNN_pred'] = ground_truth_dict[k]['target'].apply(
-                        lambda x: pred_class_dict[k]['classes'][GNNOnly_answers_dict[k][x]] if GNNOnly_answers_dict[k][
-                                                                                                   x] in
-                                                                                               pred_class_dict[k][
-                                                                                                   'classes'].keys() else None)
+                    ground_truth_dict[k]['GNN_pred'] = ground_truth_dict[k]['target'].apply(lambda x: pred_class_dict[k]['classes'][GNNOnly_answers_dict[k][x]] if x in GNNOnly_answers_dict[k] and GNNOnly_answers_dict[k][x] in pred_class_dict[k]['classes'].keys() else 'None')
                     GNNOnly_Materlized_answers_dict[k] = list(ground_truth_dict[k]['GNN_pred'].values)
             if args.glow_v in ['N', 'All']:
                 print("###########Start GLOW-N Prompts########")
@@ -356,6 +435,8 @@ if __name__ == '__main__':
                                                                                      GNNOnly_Materlized_answers_dict)
                 GNN_acc_res, GNN_merged_df = eval_predictions_Exact(ground_truth_dict, predictd_GNN_dict)
                 GNNGRAG_run_lst.append([GNN_acc_res, predictd_GNN_time_dict])
+                result_varients.append(GNN_acc_res)
+                result_varient_names.append("GLOW-N")
 
             if args.glow_v in ['GN', 'All']:
                 print("###########Start GLOW-GN Prompts########")
@@ -365,46 +446,52 @@ if __name__ == '__main__':
                                                                                            GNNOnly_Materlized_answers_dict)
                 LLMGNN_acc_res, LLMGNN_merged_df = eval_predictions_Exact(ground_truth_dict, predictd_LLMGNN_dict)
                 GNNGRAG_run_lst.append([LLMGNN_acc_res, predictd_LLMGNN_time_dict])
+                result_varients.append(LLMGNN_acc_res)
+                result_varient_names.append("GLOW-GN")
 
         ############### Save The Pipeline Answers ################
         predictd_results_dic = {"predictd_LLMOnly_dict": predictd_LLMOnly_dict,
                                 "predictd_LLMOnly_dict": predictd_WOC_dict,
                                 "predictd_WC_dict": predictd_WC_dict, "predictd_GNN_dict": predictd_GNN_dict,
-                                "predictd_LLMGNN_dict": predictd_LLMGNN_dict}
+                                "predictd_LLMGNN_dict": predictd_LLMGNN_dict,
+                                "predictd_GCR_dict": predictd_GCR_dict}
         predictd_time_dict = {"predictd_LLMOnly_time_dict": predictd_LLMOnly_time_dict,
                               "predictd_WOC_time_dict": predictd_WOC_time_dict,
                               "predictd_WC_time_dict": predictd_WC_time_dict,
                               "predictd_GNN_time_dict": predictd_GNN_time_dict,
-                              "predictd_LLMGNN_time_dict": predictd_LLMGNN_time_dict}
+                              "predictd_LLMGNN_time_dict": predictd_LLMGNN_time_dict,
+                              "predictd_GCR_time_dict":predictd_GCR_time_dict}
         merged_results_dic = {"LLMOnly_merged_df": merged_LLMOnly_df, "merged_WOC_df": merged_WOC_df,
                               "merged_WC_df": merged_WC_df,
-                              "GNN_merged_df": GNN_merged_df, "LLMGNN_merged_df": LLMGNN_merged_df}
+                              "GNN_merged_df": GNN_merged_df, "LLMGNN_merged_df": LLMGNN_merged_df,
+                              "merged_GCR_df":merged_GCR_df}
         run_lst_dic = {"LLMOnly_runs_lst": LLMOnly_runs_lst, "WOC_runs_lst": WOC_runs_lst, "WC_runs_lst": WC_runs_lst,
                        "GNNOnly_runs_lst": GNNOnly_run_lst, "GNN_run_lst": GNN_run_lst,
-                       "GNNGRAG_run_lst": GNNGRAG_run_lst}
+                       "GNNGRAG_run_lst": GNNGRAG_run_lst,"GCR_runs_lst":GCR_runs_lst}
         save_pipeline_results(predictd_results_dic, predictd_time_dict, merged_results_dic, run_lst_dic,
                               args.llm_model.split("/")[-1], KG=ds)
         ################ Print Results ################
         final_results_dict = {}
-        for k in LLMOnly_acc_res:
+        for k in result_varients[0]:
             final_results_dict[k] = []
-            for res_dic in [LLMOnly_acc_res, WOC_acc_res, WC_acc_res, GNNOnly_acc_res_dict, GNN_acc_res,
-                            LLMGNN_acc_res]:
+            for res_dic in result_varients:
                 final_results_dict[k].append(res_dic[k][0])
         res_df = pd.DataFrame(final_results_dict).transpose()
-        res_df.columns = ['LLMOnly', 'Glow-L', 'Glow-G', 'GNN', 'Glow-N', 'Glow-GN']
+        res_df.columns = result_varient_names
         res_df["dataset_name"] = res_df.index
-        res_df = res_df[['dataset_name', 'LLMOnly', 'Glow-L', 'Glow-G', 'GNN', 'Glow-N', 'Glow-GN']]
+        # res_df = res_df[['dataset_name', 'LLMOnly', 'Glow-L', 'Glow-G', 'GNN', 'Glow-N', 'Glow-GN']]
         res_df.to_csv(f'../GLOW-QA_dataset/{ds}_{args.llm_model.split("/")[-1]}_result.csv', index=False)
         print("Accuracy:\n", res_df)
         try:
             pred_lst = [predictd_LLMOnly_dict, predictd_WOC_dict, predictd_WC_dict, predictd_GNN_dict,
-                        predictd_LLMGNN_dict]
+                        predictd_LLMGNN_dict,predictd_GCR_dict]
             time_lst = [predictd_LLMOnly_time_dict, predictd_WOC_time_dict, predictd_WC_time_dict,
-                        predictd_GNN_time_dict, predictd_LLMGNN_time_dict]
-            print("Time:\n", calc_answer_time(pred_lst, time_lst))
-            print("Tokens Count:\n", calc_tokens(
+                        predictd_GNN_time_dict, predictd_LLMGNN_time_dict,predictd_GCR_time_dict]
+            print("Time:")
+            calc_answer_time(pred_lst, time_lst)
+            print("Tokens Count:")
+            calc_tokens(
                 piplines=[predictd_LLMOnly_dict, predictd_WOC_dict, predictd_WC_dict, predictd_GNN_dict,
-                          predictd_LLMGNN_dict]))
+                          predictd_LLMGNN_dict,predictd_GCR_dict])
         except:
             continue

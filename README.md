@@ -12,7 +12,7 @@ Knowledge Graph Question Answering (KGQA) aims to answer natural language questi
   <h4><em>Table 1: Average accuracy (%) on open-world KGQA tasks, grouped by reasoning hop count.
       <br> GLOW-GN significantly outperforms the baseline methods, especially on both 1-hop and 2-hop questions.
       <br> All methods use Qwen3-8B as the underlying LLM. <br></em></h4>
-  <img src="table1.png" style="width: 25%" alt="Average accuracy (%) on open-world KGQA"/>
+  <img src="table1.png" style="width: 40%" alt="Average accuracy (%) on open-world KGQA"/>
   </center>
 </p>
 
@@ -23,4 +23,4 @@ python src/GLOW.py  --llm_model  qwen3:8b --dataset_name biokg --runs 3 --glow-v
 ```
 - <p>llm_model choices=[gpt-4o-mini,deepseek-chat,deepseek-r1,granite3.3,gemini-1.5-flash,llama3.2:3b,qwen3:8b,phi4-mini]</p>
 - <p>dataset_name choices=[biokg,linkedIMDB,yago4-person,yago4-creativwork,crunchbase,arxiv2023,ogbnArxiv,ogbnProduct]</p>
-- <p>glow-v choices=[L,GN,G,N,LLM,All]</p>
+- <p>glow-v choices=[L,GCR,GN,G,N,LLM,All]</p>

@@ -1,5 +1,4 @@
 requests
-pandas
 accelerate==1.6.0
 annotated-types==0.7.0
 distro==1.9.0
@@ -40,4 +39,22 @@ typing-inspection==0.4.0
 tzdata==2025.2
 wheel==0.45.1
 ollama
+openai
+datasets
+bitsandbytes
+langchain
+sentence-transformers
+ragatouille
+xformers==0.0.29.post3
+peft
+trl
+triton
+cut_cross_entropy
+sentencepiece
+protobuf
+huggingface_hub
+hf_transfer
+wget
+walker
+
 

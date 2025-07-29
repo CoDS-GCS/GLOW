@@ -1,0 +1,6 @@
+GCR,dataset_name
+0.875,person-country_of_nationality
+0.1388888888888889,parson-graduate_of_organization
+0.23076923076923078,person-occupation
+0.75,person-spoken_language
+0.25,person-given_award

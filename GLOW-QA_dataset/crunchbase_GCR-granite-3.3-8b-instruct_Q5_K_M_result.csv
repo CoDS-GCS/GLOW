@@ -1,0 +1,5 @@
+GCR,dataset_name
+0.5555555555555556,person-title
+0.9696969696969697,person-organization_name
+0.2857142857142857,person-region_name
+0.6944444444444444,person-country_code
